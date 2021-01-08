@@ -22,5 +22,8 @@
     "@openzeppelin/contracts": "^2.4.0",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/upgrades": "^2.4.0"
+  },
+  "devDependencies": {
+    "@truffle/hdwallet-provider": "^1.2.1"
   }
 }
