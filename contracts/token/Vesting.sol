@@ -22,15 +22,14 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
     uint256 public deployment; // Time of deployment of this contract
     uint256 public constant trancheIntervals = (365 * 24 * 60 * 60) / 12; // 1 Month in Seconds
     uint256 public constant totalIntervals = 24; // Spread over 24 months
-    uint256 public totalVestedTokens;
 
-    bool internal tokensReceived = false;
+    uint256 public totalVestedTokens;
 
     function initialize(
         address _tokenContract,
         address[] memory _beneficiaries,
         uint256[] memory _amounts
-    ) public initializer {
+    ) public initializer returns (bool) {
         require(
             _beneficiaries.length == _amounts.length,
             "VESTING-ARRAY-LENGTH-MISMATCH"
@@ -42,19 +41,11 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
             beneficiaries.push(_beneficiaries[i]);
             totalVestedTokens = totalVestedTokens.add(_amounts[i]);
         }
-    }
-
-    function addTokens() external {
-        require(!tokensReceived, "VESTING-TOKENS-ALREADY-RECEIVED");
-        require(
-            xgtToken.transferFrom(msg.sender, address(this), totalVestedTokens),
-            "VESTING-TRANSFER-FAILED"
-        );
         require(
             xgtToken.balanceOf(address(this)) == totalVestedTokens,
-            "VESTING-INIT-FAILED"
+            "VESTING-TOKENS-MISMATCH"
         );
-        tokensReceived = true;
+        return true;
     }
 
     function addBeneficiary(address _newBeneficiary, uint256 _amount) external {
