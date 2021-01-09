@@ -25,10 +25,22 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
 
     uint256 public totalVestedTokens;
 
+    uint256 public undistributedTokenInterval;
+
+    uint256 public totalUndistributedCommunityTokens;
+    uint256 public totalUnlockedCommunityTokens;
+    uint256 public distributedCommunityTokens;
+
+    uint256 public totalUndistributedTeamTokens;
+    uint256 public totalUnlockedTeamTokens;
+    uint256 public distributedTeamTokens;
+
     function initialize(
         address _tokenContract,
         address[] memory _beneficiaries,
-        uint256[] memory _amounts
+        uint256[] memory _amounts,
+        uint256 _undistributedCommunityTokens,
+        uint256 _undistributedTeamTokens
     ) public initializer returns (bool) {
         require(
             _beneficiaries.length == _amounts.length,
@@ -41,6 +53,13 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
             beneficiaries.push(_beneficiaries[i]);
             totalVestedTokens = totalVestedTokens.add(_amounts[i]);
         }
+        totalVestedTokens = totalVestedTokens
+            .add(_undistributedCommunityTokens)
+            .add(_undistributedTeamTokens);
+
+        totalUndistributedCommunityTokens = _undistributedCommunityTokens;
+        totalUndistributedTeamTokens = _undistributedTeamTokens;
+
         require(
             xgtToken.balanceOf(address(this)) == totalVestedTokens,
             "VESTING-TOKENS-MISMATCH"
@@ -48,17 +67,38 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         return true;
     }
 
-    function addBeneficiary(address _newBeneficiary, uint256 _amount) external {
+    function distributeTeamTokens(address _receiver, uint256 _amount)
+        external
+        onlyOwner
+    {
         require(_amount > 0, "VESTING-CANT-VEST-ZERO-AMOUNT");
         require(
-            xgtToken.transferFrom(msg.sender, address(this), _amount),
-            "VESTING-TRANSFER-FAILED"
+            freeTeamTokens() >= _amount,
+            "VESTING-NOT-ENOUGH-TEAM-TOKENS-UNLOCKED"
         );
 
-        totalVestedTokens = totalVestedTokens.add(_amount);
-        beneficiary[_newBeneficiary] = Beneficiary(_amount, 0, 0, 0);
-        beneficiaries.push(_newBeneficiary);
-        claim(_newBeneficiary);
+        distributedTeamTokens = distributedTeamTokens.add(_amount);
+        require(
+            xgtToken.transfer(_receiver, _amount),
+            "VESTING-TRANSFER-FAILED"
+        );
+    }
+
+    function distributeCommunityTokens(address _receiver, uint256 _amount)
+        external
+        onlyOwner
+    {
+        require(_amount > 0, "VESTING-CANT-VEST-ZERO-AMOUNT");
+        require(
+            freeCommunityTokens() >= _amount,
+            "VESTING-NOT-ENOUGH-COMMUNITY-TOKENS-UNLOCKED"
+        );
+
+        distributedCommunityTokens = distributedCommunityTokens.add(_amount);
+        require(
+            xgtToken.transfer(_receiver, _amount),
+            "VESTING-TRANSFER-FAILED"
+        );
     }
 
     function claim(address _beneficiary) public {
@@ -113,6 +153,45 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         for (uint256 i = 0; i < beneficiaries.length; i++) {
             claim(beneficiaries[i]);
         }
+        unlockTokens();
+    }
+
+    function unlockTokens() public {
+        uint256 currentInterval = (now.sub(deployment)).div(trancheIntervals);
+
+        if (currentInterval <= undistributedTokenInterval) {
+            return;
+        }
+
+        uint256 unlockedAmountTeam = 0;
+        uint256 unlockedAmountCommunity = 0;
+        if (currentInterval == totalIntervals) {
+            unlockedAmountTeam = totalUndistributedTeamTokens.sub(
+                totalUnlockedTeamTokens
+            );
+            unlockedAmountCommunity = totalUndistributedCommunityTokens.sub(
+                totalUnlockedCommunityTokens
+            );
+            totalUnlockedTeamTokens = totalUndistributedTeamTokens;
+            totalUnlockedCommunityTokens = totalUndistributedCommunityTokens;
+            undistributedTokenInterval = totalIntervals;
+        } else {
+            uint256 intervalDiff =
+                currentInterval.sub(undistributedTokenInterval);
+            undistributedTokenInterval = currentInterval;
+            uint256 amountTeam =
+                (totalUndistributedTeamTokens.div(totalIntervals)).mul(
+                    intervalDiff
+                );
+            uint256 amountCommunity =
+                (totalUndistributedCommunityTokens.div(totalIntervals)).mul(
+                    intervalDiff
+                );
+            totalUnlockedCommunityTokens = totalUnlockedCommunityTokens.add(
+                amountCommunity
+            );
+            totalUnlockedTeamTokens = totalUnlockedTeamTokens.add(amountTeam);
+        }
     }
 
     function updateAddress(address _old, address _new) external {
@@ -134,5 +213,33 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
                 break;
             }
         }
+    }
+
+    function getUnclaimedTokens(address _address)
+        external
+        view
+        returns (uint256)
+    {
+        return beneficiary[_address].tokensLeft;
+    }
+
+    function getTotalTokens(address _address) external view returns (uint256) {
+        return beneficiary[_address].totalTokens;
+    }
+
+    function getClaimedTokens(address _address)
+        external
+        view
+        returns (uint256)
+    {
+        return beneficiary[_address].claimedTokens;
+    }
+
+    function freeTeamTokens() public view returns (uint256) {
+        return totalUnlockedTeamTokens.sub(distributedTeamTokens);
+    }
+
+    function freeCommunityTokens() public view returns (uint256) {
+        return totalUnlockedCommunityTokens.sub(distributedCommunityTokens);
     }
 }
