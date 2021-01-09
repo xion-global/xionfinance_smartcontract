@@ -21,7 +21,8 @@
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts": "^2.4.0",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
-    "@openzeppelin/upgrades": "^2.4.0"
+    "@openzeppelin/upgrades": "^2.4.0",
+    "ganache-time-traveler": "^1.0.15"
   },
   "devDependencies": {
     "@truffle/hdwallet-provider": "^1.2.1"
