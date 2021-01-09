@@ -38,21 +38,70 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
     function initialize(
         address _tokenContract,
         address[] memory _beneficiaries,
-        uint256[] memory _amounts,
-        uint256 _undistributedCommunityTokens,
-        uint256 _undistributedTeamTokens
+        uint256 _reserveAmount,
+        uint256[] memory _amountsFounders,
+        uint256[] memory _amountsTeam,
+        uint256[] memory _amountsCommunity,
+        uint256 _undistributedTeamTokens,
+        uint256 _undistributedCommunityTokens
     ) public initializer returns (bool) {
         require(
-            _beneficiaries.length == _amounts.length,
+            _beneficiaries.length ==
+                _amountsFounders
+                    .length
+                    .add(_amountsTeam.length)
+                    .add(_amountsCommunity.length)
+                    .add(1),
             "VESTING-ARRAY-LENGTH-MISMATCH"
         );
         xgtToken = IXGTToken(_tokenContract);
         deployment = now;
-        for (uint256 i = 0; i < _beneficiaries.length; i++) {
-            beneficiary[_beneficiaries[i]] = Beneficiary(_amounts[i], 0, 0, 0);
-            beneficiaries.push(_beneficiaries[i]);
-            totalVestedTokens = totalVestedTokens.add(_amounts[i]);
+
+        uint256 index = 0;
+        beneficiary[_beneficiaries[index]] = Beneficiary(
+            _reserveAmount,
+            _reserveAmount,
+            0,
+            0
+        );
+        totalVestedTokens = totalVestedTokens.add(_reserveAmount);
+        index = index.add(1);
+
+        for (uint256 i = 0; i < _amountsFounders.length; i++) {
+            beneficiary[_beneficiaries[index + i]] = Beneficiary(
+                _amountsFounders[i],
+                _amountsFounders[i],
+                0,
+                0
+            );
+            beneficiaries.push(_beneficiaries[index + i]);
+            totalVestedTokens = totalVestedTokens.add(_amountsFounders[i]);
         }
+        index = index.add(_amountsFounders.length);
+
+        for (uint256 i = 0; i < _amountsTeam.length; i++) {
+            beneficiary[_beneficiaries[index + i]] = Beneficiary(
+                _amountsTeam[i],
+                _amountsTeam[i],
+                0,
+                0
+            );
+            beneficiaries.push(_beneficiaries[index + i]);
+            totalVestedTokens = totalVestedTokens.add(_amountsTeam[i]);
+        }
+        index = index.add(_amountsTeam.length);
+
+        for (uint256 i = 0; i < _amountsCommunity.length; i++) {
+            beneficiary[_beneficiaries[index + i]] = Beneficiary(
+                _amountsCommunity[i],
+                _amountsCommunity[i],
+                0,
+                0
+            );
+            beneficiaries.push(_beneficiaries[index + i]);
+            totalVestedTokens = totalVestedTokens.add(_amountsCommunity[i]);
+        }
+
         totalVestedTokens = totalVestedTokens
             .add(_undistributedCommunityTokens)
             .add(_undistributedTeamTokens);
@@ -113,36 +162,21 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
             return;
         }
 
-        uint256 claimedAmount = 0;
-        if (currentInterval == totalIntervals) {
-            claimedAmount = beneficiary[_beneficiary].tokensLeft;
-            beneficiary[_beneficiary].intervalNumber = totalIntervals;
-            beneficiary[_beneficiary].claimedTokens = beneficiary[_beneficiary]
-                .claimedTokens
-                .add(beneficiary[_beneficiary].tokensLeft);
-            beneficiary[_beneficiary].tokensLeft = 0;
-            require(
-                beneficiary[_beneficiary].totalTokens ==
-                    beneficiary[_beneficiary].claimedTokens.add(
-                        beneficiary[_beneficiary].tokensLeft
-                    ),
-                "VESTING-SUM-MISMATCH"
-            );
-        } else {
-            uint256 intervalDiff =
-                currentInterval.sub(beneficiary[_beneficiary].intervalNumber);
-            beneficiary[_beneficiary].intervalNumber = currentInterval;
-            uint256 amountPerInterval =
-                beneficiary[_beneficiary].totalTokens.div(totalIntervals);
-            claimedAmount = amountPerInterval.mul(intervalDiff);
-            beneficiary[_beneficiary].claimedTokens = beneficiary[_beneficiary]
-                .claimedTokens
-                .add(claimedAmount);
-            beneficiary[_beneficiary].tokensLeft = beneficiary[_beneficiary]
-                .tokensLeft
-                .sub(claimedAmount);
-            xgtToken.transfer(_beneficiary, claimedAmount);
-        }
+        uint256 claimedAmount = getUnclaimedTokens(_beneficiary);
+        beneficiary[_beneficiary].claimedTokens = beneficiary[_beneficiary]
+            .claimedTokens
+            .add(claimedAmount);
+        beneficiary[_beneficiary].intervalNumber = currentInterval;
+        beneficiary[_beneficiary].tokensLeft = beneficiary[_beneficiary]
+            .tokensLeft
+            .sub(claimedAmount);
+        require(
+            beneficiary[_beneficiary].totalTokens ==
+                beneficiary[_beneficiary].tokensLeft.add(
+                    beneficiary[_beneficiary].claimedTokens
+                ),
+            "VESTING-MISMATCH"
+        );
         require(
             xgtToken.transfer(_beneficiary, claimedAmount),
             "VESTING-TRANSFER-FAILED"
@@ -165,7 +199,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
 
         uint256 unlockedAmountTeam = 0;
         uint256 unlockedAmountCommunity = 0;
-        if (currentInterval == totalIntervals) {
+        if (currentInterval >= totalIntervals) {
             unlockedAmountTeam = totalUndistributedTeamTokens.sub(
                 totalUnlockedTeamTokens
             );
@@ -216,11 +250,27 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
     }
 
     function getUnclaimedTokens(address _address)
-        external
+        public
         view
         returns (uint256)
     {
-        return beneficiary[_address].tokensLeft;
+        uint256 currentInterval = (now.sub(deployment)).div(trancheIntervals);
+
+        if (currentInterval <= beneficiary[_address].intervalNumber) {
+            return 0;
+        }
+
+        uint256 claimableAmount = 0;
+        if (currentInterval >= totalIntervals) {
+            claimableAmount = beneficiary[_address].tokensLeft;
+        } else {
+            uint256 intervalDiff =
+                currentInterval.sub(beneficiary[_address].intervalNumber);
+            uint256 amountPerInterval =
+                beneficiary[_address].totalTokens.div(totalIntervals);
+            claimableAmount = amountPerInterval.mul(intervalDiff);
+        }
+        return claimableAmount;
     }
 
     function getTotalTokens(address _address) external view returns (uint256) {
