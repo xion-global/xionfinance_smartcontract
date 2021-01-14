@@ -33,36 +33,36 @@ contract('Vesting', async (accounts) =>  {
             "correct amounts wasn't in the account"
         );
 
-        let tokenBalance = await token.balanceOf.call(addrFounder1);
-        assert.equal(
-            tokenBalance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
-            "correct amounts wasn't in the account"
-        );
+        // let tokenBalance = await token.balanceOf.call(addrFounder1);
+        // assert.equal(
+        //     tokenBalance.valueOf().toString(),
+        //     web3.utils.toWei("0", "ether"),
+        //     "correct amounts wasn't in the account"
+        // );
 
-        balance = await instance.getClaimedTokens.call(addrFounder1);
-        assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
-            "correct amounts wasn't in the account"
-        );
+        // balance = await instance.getClaimedTokens.call(addrFounder1);
+        // assert.equal(
+        //     balance.valueOf().toString(),
+        //     web3.utils.toWei("0", "ether"),
+        //     "correct amounts wasn't in the account"
+        // );
 
-        await timeMachine.advanceTimeAndBlock(60*60*24*31);
+        // await timeMachine.advanceTimeAndBlock(60*60*24*31);
 
-        balance = await instance.getClaimedTokens.call(addrFounder1);
-        assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
-            "correct amounts wasn't in the account"
-        );
+        // balance = await instance.getClaimedTokens.call(addrFounder1);
+        // assert.equal(
+        //     balance.valueOf().toString(),
+        //     web3.utils.toWei("0", "ether"),
+        //     "correct amounts wasn't in the account"
+        // );
         
-        balance = await instance.getUnclaimedTokens.call(addrFounder1);
-        assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei((totalFounder1/24).toString(), "ether"),
-            "correct amounts wasn't in the account"
-        );
-        await instance.claimAll();
+        // balance = await instance.getUnclaimedTokens.call(addrFounder1);
+        // assert.equal(
+        //     balance.valueOf().toString(),
+        //     web3.utils.toWei((totalFounder1/24).toString(), "ether"),
+        //     "correct amounts wasn't in the account"
+        // );
+        // await instance.claimAll();
 
         balance = await instance.getClaimedTokens.call(addrFounder1);
         assert.equal(
@@ -105,7 +105,7 @@ contract('Vesting', async (accounts) =>  {
             "correct amounts wasn't in the account"
         );
 
-        await timeMachine.advanceTimeAndBlock(60*60*24*31*24);
+        await timeMachine.advanceTimeAndBlock(60*60*24*31*23);
 
         await instance.claimAll();
 
@@ -135,26 +135,12 @@ contract('Vesting', async (accounts) =>  {
             "correct amounts wasn't in the account"
         );
 
-        balance = await instance.getClaimedTokens.call(addrFounder2);
-        assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
-            "correct amounts wasn't in the account"
-        );
-
-        await timeMachine.advanceTimeAndBlock(60*60*24*31*23);
-
-        balance = await instance.getClaimedTokens.call(addrFounder2);
-        assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
-            "correct amounts wasn't in the account"
-        );
+        await timeMachine.advanceTimeAndBlock(60*60*24*31*22);
         
         balance = await instance.getUnclaimedTokens.call(addrFounder2);
         assert.equal(
             balance.valueOf().toString(),
-            web3.utils.toWei((totalFounder2/24*23).toString(), "ether"),
+            web3.utils.toWei((totalFounder2/24*22).toString(), "ether"),
             "correct amounts wasn't in the account"
         );
         await instance.claimAll();
@@ -208,15 +194,15 @@ contract('Vesting', async (accounts) =>  {
 
         let tokenBalance = await token.balanceOf.call(addrTeam);
         assert.equal(
-            tokenBalance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
+            tokenBalance.valueOf().toString().slice(0,-9),
+            web3.utils.toWei((totalTeam/24).toString(), "ether").slice(0,-9),
             "correct amounts wasn't in the account"
         );
 
         balance = await instance.getClaimedTokens.call(addrTeam);
         assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
+            balance.valueOf().toString().slice(0,-9),
+            web3.utils.toWei((totalTeam/24).toString(), "ether").slice(0,-9),
             "correct amounts wasn't in the account"
         );
 
@@ -224,8 +210,8 @@ contract('Vesting', async (accounts) =>  {
 
         balance = await instance.getClaimedTokens.call(addrTeam);
         assert.equal(
-            balance.valueOf().toString(),
-            web3.utils.toWei("0", "ether"),
+            balance.valueOf().toString().slice(0,-9),
+            web3.utils.toWei((totalTeam/24).toString(), "ether").slice(0,-9),
             "correct amounts wasn't in the account"
         );
         
@@ -240,14 +226,14 @@ contract('Vesting', async (accounts) =>  {
         balance = await instance.getClaimedTokens.call(addrTeam);
         assert.equal(
             balance.valueOf().toString().slice(0,-9),
-            web3.utils.toWei((totalTeam/24).toString(), "ether").slice(0,-9),
+            web3.utils.toWei((totalTeam/24*2).toString(), "ether").slice(0,-9),
             "correct amounts wasn't in the account"
         );
 
         tokenBalance = await token.balanceOf.call(addrTeam);
         assert.equal(
             tokenBalance.valueOf().toString().slice(0,-9),
-            web3.utils.toWei((totalTeam/24).toString(), "ether").slice(0,-9),
+            web3.utils.toWei((totalTeam/24*2).toString(), "ether").slice(0,-9),
             "correct amounts wasn't in the account"
         );
 
@@ -263,11 +249,11 @@ contract('Vesting', async (accounts) =>  {
         balance = await instance.getClaimedTokens.call(addrTeam);
         assert.equal(
             balance.valueOf().toString().slice(0,-9),
-            web3.utils.toWei((totalTeam/24).toString(), "ether").slice(0,-9),
+            web3.utils.toWei((totalTeam/24*2).toString(), "ether").slice(0,-9),
             "correct amounts wasn't in the account"
         );
 
-        await timeMachine.advanceTimeAndBlock(60*60*24*31*3);
+        await timeMachine.advanceTimeAndBlock(60*60*24*31*2);
 
         await instance.claimAll();
 

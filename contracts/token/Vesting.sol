@@ -113,6 +113,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
             xgtToken.balanceOf(address(this)) == totalVestedTokens,
             "VESTING-TOKENS-MISMATCH"
         );
+        claimAll();
         return true;
     }
 
@@ -156,7 +157,8 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
             "VESTING-BENEFICIARY-DOESNT-EXIST"
         );
 
-        uint256 currentInterval = (now.sub(deployment)).div(trancheIntervals);
+        uint256 currentInterval =
+            ((now.sub(deployment)).div(trancheIntervals)).add(1);
 
         if (currentInterval <= beneficiary[_beneficiary].intervalNumber) {
             return;
@@ -183,7 +185,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         );
     }
 
-    function claimAll() external {
+    function claimAll() public {
         for (uint256 i = 0; i < beneficiaries.length; i++) {
             claim(beneficiaries[i]);
         }
@@ -191,7 +193,8 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
     }
 
     function unlockTokens() public {
-        uint256 currentInterval = (now.sub(deployment)).div(trancheIntervals);
+        uint256 currentInterval =
+            ((now.sub(deployment)).div(trancheIntervals)).add(1);
 
         if (currentInterval <= undistributedTokenInterval) {
             return;
@@ -254,7 +257,8 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         view
         returns (uint256)
     {
-        uint256 currentInterval = (now.sub(deployment)).div(trancheIntervals);
+        uint256 currentInterval =
+            ((now.sub(deployment)).div(trancheIntervals)).add(1);
 
         if (currentInterval <= beneficiary[_address].intervalNumber) {
             return 0;

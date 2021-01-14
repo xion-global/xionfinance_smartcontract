@@ -1,9 +1,9 @@
 pragma solidity >=0.5.13;
 
-import '../XGTLPERC20.sol';
+import "../UniswapV2ERC20.sol";
 
-contract ERC20 is XGTLPERC20 {
-    constructor(uint _totalSupply) public {
+contract ERC20 is UniswapV2ERC20 {
+    constructor(uint256 _totalSupply) public {
         _mint(msg.sender, _totalSupply);
     }
 }

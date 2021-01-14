@@ -1,6 +1,6 @@
 pragma solidity >=0.5.0;
 
-interface IXGTLPFactory {
+interface IUniswapV2Factory {
     event PairCreated(
         address indexed token0,
         address indexed token1,

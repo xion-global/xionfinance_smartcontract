@@ -22,9 +22,12 @@
     "@openzeppelin/contracts": "^2.4.0",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/upgrades": "^2.4.0",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "ganache-time-traveler": "^1.0.15"
   },
   "devDependencies": {
+    "@truffle/contract": "^4.3.5",
     "@truffle/hdwallet-provider": "^1.2.1"
   }
 }

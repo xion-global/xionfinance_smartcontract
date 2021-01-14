@@ -5,6 +5,8 @@ module.exports = {
     development: {
      host: "127.0.0.1",
      port: 8545,
+     gasPrice: 1*1000000000,
+     gasLimit: 12000000,
      network_id: "*",
     },
     rinkeby: {

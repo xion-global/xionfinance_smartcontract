@@ -33,7 +33,7 @@ contract XGTToken is
     uint256 public constant COMMUNITY_AND_AIRDROPS = 300000000 * 10**18; // 0.3 billion
     uint256 public constant TEAM_AND_ADVISORS = 150000000 * 10**18; // 0.15 billion
 
-    function initialize(
+    function initializeToken(
         address _subscriptionContract,
         address _vestingContract,
         address[] memory _reserveAddresses,
