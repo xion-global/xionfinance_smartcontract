@@ -20,7 +20,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
     address[] internal beneficiaries;
 
     uint256 public deployment; // Time of deployment of this contract
-    uint256 public constant trancheIntervals = (365 * 24 * 60 * 60) / 12; // 1 Month in Seconds
+    uint256 public constant trancheInterval = (365 * 24 * 60 * 60) / 12; // 1 Month in Seconds
     uint256 public constant totalIntervals = 24; // Spread over 24 months
 
     uint256 public totalVestedTokens;
@@ -158,7 +158,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         );
 
         uint256 currentInterval =
-            ((now.sub(deployment)).div(trancheIntervals)).add(1);
+            ((now.sub(deployment)).div(trancheInterval)).add(1);
 
         if (currentInterval <= beneficiary[_beneficiary].intervalNumber) {
             return;
@@ -194,7 +194,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
 
     function unlockTokens() public {
         uint256 currentInterval =
-            ((now.sub(deployment)).div(trancheIntervals)).add(1);
+            ((now.sub(deployment)).div(trancheInterval)).add(1);
 
         if (currentInterval <= undistributedTokenInterval) {
             return;
@@ -258,7 +258,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         returns (uint256)
     {
         uint256 currentInterval =
-            ((now.sub(deployment)).div(trancheIntervals)).add(1);
+            ((now.sub(deployment)).div(trancheInterval)).add(1);
 
         if (currentInterval <= beneficiary[_address].intervalNumber) {
             return 0;
@@ -287,6 +287,15 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         returns (uint256)
     {
         return beneficiary[_address].claimedTokens;
+    }
+
+    function getTimeTilNextIteration() external view returns (uint256) {
+        uint256 timeSinceLastInterval =
+            (now.sub(deployment)) % (trancheInterval.div(totalIntervals));
+        if (timeSinceLastInterval >= trancheInterval) {
+            return 0;
+        }
+        return trancheInterval.sub(timeSinceLastInterval);
     }
 
     function freeTeamTokens() public view returns (uint256) {
