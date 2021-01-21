@@ -125,10 +125,7 @@ contract XGTStakeMainnet is Initializable, OpenZeppelinUpgradesOwnable {
         uint256 cDaiToRedeem = uint256(2**256 - 1);
         uint256 amount = _amount;
         if (amount != cDaiToRedeem) {
-            cDaiToRedeem = (
-                ((amount.mul(1000)).div(userDepositDai)).mul(userDepositCDai)
-            )
-                .div(1000);
+            cDaiToRedeem = userDepositCDai.mul(amount).div(userDepositDai);
         }
 
         // If the calculation for some reason came up with too much
