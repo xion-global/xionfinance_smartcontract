@@ -110,20 +110,24 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         totalUserDeposit[_user] = totalUserDeposit[_user].add(_amount);
         totalDeposits = totalDeposits.add(_amount);
 
-        uint256 lastItem = specificUserDeposits[_user].deposits.length.sub(1);
-        if (
-            specificUserDeposits[_user].deposits[lastItem].generationRate ==
-            _rate
-        ) {
-            specificUserDeposits[_user].deposits[lastItem]
-                .amount = specificUserDeposits[_user].deposits[lastItem]
-                .amount
-                .add(_amount);
-        } else {
-            specificUserDeposits[_user].deposits.push(
-                DepositPerRate(_amount, _rate)
-            );
+        if (specificUserDeposits[_user].deposits.length != 0) {
+            uint256 lastItem =
+                specificUserDeposits[_user].deposits.length.sub(1);
+
+            if (
+                specificUserDeposits[_user].deposits[lastItem].generationRate ==
+                _rate
+            ) {
+                specificUserDeposits[_user].deposits[lastItem]
+                    .amount = specificUserDeposits[_user].deposits[lastItem]
+                    .amount
+                    .add(_amount);
+                return;
+            }
         }
+        specificUserDeposits[_user].deposits.push(
+            DepositPerRate(_amount, _rate)
+        );
     }
 
     function tokensUnstaked(uint256 _amount, address _user)
@@ -207,7 +211,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
     // function does a correction based on the users current pool tokens
     function manualCorrectPool(address _user) external {
         uint256 currentTokens = xgtpair.balanceOf(_user);
-        if (userPoolTokens[_user] != xgtpair.balanceOf(_user)) {
+        if (userPoolTokens[_user] != currentTokens) {
             if (userPoolTokens[_user] > currentTokens) {
                 uint256 diff = userPoolTokens[_user].sub(currentTokens);
                 _stopGeneration(diff, _user);
@@ -238,11 +242,12 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
     }
 
     function claimXGT(address _user) public onlyIfNotPaused {
-        specificUserDeposits[_user].lastTimeClaimed = now;
-
         uint256 xgtToClaim = getUnclaimedXGT(_user);
+        if (xgtToClaim > 0) {
+            require(xgt.mint(_user, xgtToClaim), "XGTSTAKE-MINT-FAILED");
+        }
 
-        require(xgt.mint(_user, xgtToClaim), "XGTSTAKE-MINT-FAILED");
+        specificUserDeposits[_user].lastTimeClaimed = now;
     }
 
     function getUnclaimedXGT(address _user) public view returns (uint256) {
@@ -258,6 +263,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
                 specificUserDeposits[_user].deposits[i]
                     .amount
                     .mul(specificUserDeposits[_user].deposits[i].generationRate)
+                    .div(10**18)
                     .mul(diffTime)
             );
         }

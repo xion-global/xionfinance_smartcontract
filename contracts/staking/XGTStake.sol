@@ -18,7 +18,7 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
     IChainlinkOracle public gasOracle;
     IChainlinkOracle public ethDaiOracle;
 
-    address public stakingContractXdai;
+    address public _xgtGeneratorContract;
 
     bool public paused = false;
     uint256 public averageGasPerDeposit = 150000;
@@ -32,13 +32,11 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
     mapping(address => uint256) public userDepositsCDai;
     uint256 public totalDeposits;
 
-    event Test(uint256 indexed diff, uint256 indexed cut, uint256 rest);
-
     function initialize(
         address _stakeToken,
         address _cToken,
         address _bridge,
-        address _stakingContractXdai
+        address __xgtGeneratorContract
     ) public initializer {
         stakeToken = IPERC20(_stakeToken);
         cToken = ICToken(_cToken);
@@ -49,7 +47,7 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
         ethDaiOracle = IChainlinkOracle(
             0x773616E4d11A78F511299002da57A0a94577F1f4
         );
-        stakingContractXdai = _stakingContractXdai;
+        _xgtGeneratorContract = __xgtGeneratorContract;
         interestCutReceiver = 0xdE8DcD65042db880006421dD3ECA5D94117642d1;
     }
 
@@ -96,9 +94,11 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
         userDepositsCDai[_user] = userDepositsCDai[_user].add(cDai);
         totalDeposits = totalDeposits.add(_amount);
 
-        // bytes4 _methodSelector = IXGTGenerator(address(0)).tokensDeposited.selector;
-        // bytes memory data = abi.encodeWithSelector(_methodSelector, _amount, _user);
-        // bridge.requireToPassMessage(stakingContractXdai,data,300000);
+        bytes4 _methodSelector =
+            IXGTGenerator(address(0)).tokensStaked.selector;
+        bytes memory data =
+            abi.encodeWithSelector(_methodSelector, _amount, _user);
+        bridge.requireToPassMessage(_xgtGeneratorContract, data, 300000);
     }
 
     function withdrawTokensForUser(uint256 _amount, address _user)
@@ -164,9 +164,11 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
             "XGTSTAKE-USER-TRANSFER-FAILED"
         );
 
-        // bytes4 _methodSelector = IXGTGenerator(address(0)).tokensWithdrawn.selector;
-        // bytes memory data = abi.encodeWithSelector(_methodSelector, _amount, _user);
-        // bridge.requireToPassMessage(stakingContractXdai,data,300000);
+        bytes4 _methodSelector =
+            IXGTGenerator(address(0)).tokensUnstaked.selector;
+        bytes memory data =
+            abi.encodeWithSelector(_methodSelector, _amount, _user);
+        bridge.requireToPassMessage(_xgtGeneratorContract, data, 300000);
     }
 
     function correctBalance(address _user) external {
@@ -178,7 +180,7 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
                 userDepositsDai[_user],
                 _user
             );
-        bridge.requireToPassMessage(stakingContractXdai, data, 300000);
+        bridge.requireToPassMessage(_xgtGeneratorContract, data, 300000);
     }
 
     function refundGas(

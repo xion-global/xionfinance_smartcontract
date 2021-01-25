@@ -113,7 +113,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
 
         // If Liquidity is provided for the xDAI && XGT pair
         if (tokenA == XGT && tokenB == WETH) {
-            XGTGenerator.tokensPooled(amountA.mul(2), to);
+            XGTGenerator.tokensPooled(liquidity, to);
         }
     }
 
@@ -150,6 +150,11 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         // refund dust eth, if any
         if (msg.value > amountETH)
             TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
+
+        // If Liquidity is provided for the xDAI && XGT pair
+        if (token == XGT) {
+            XGTGenerator.tokensPooled(liquidity, to);
+        }
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -180,7 +185,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
 
         // If Liquidity is removed from the xDAI && XGT pair
         if (tokenA == XGT && tokenB == WETH) {
-            XGTGenerator.tokensUnpooled(amountA.mul(2), to);
+            XGTGenerator.tokensUnpooled(liquidity, msg.sender);
         }
     }
 

@@ -16,6 +16,13 @@ module.exports = {
       network_id: 4,
       skipDryRun: true,
     },
+    kovan: {
+      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://kovan.infura.io/v3/" + process.env.INFURA_KEY),
+      gasPrice: 2.5 * 1000000000,
+      gasLimit: 10000000,
+      network_id: 42,
+      skipDryRun: true,
+    },
     sokol: {
       provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://sokol.poa.network"),
       gasPrice: 1 * 1000000000,

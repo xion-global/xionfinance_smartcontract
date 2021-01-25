@@ -14,8 +14,12 @@ contract PreAllocERC20 is
 {
     using SafeMath for uint256;
 
-    function initializeToken(address _address) public initializer {
+    function initializeToken(address _address, address _minter)
+        public
+        initializer
+    {
         ERC20Detailed.initialize("XionGlobal Test Token", "XGTest", 18);
         _mint(_address, 1000000 * 1000000000000000000);
+        _addMinter(_minter);
     }
 }
