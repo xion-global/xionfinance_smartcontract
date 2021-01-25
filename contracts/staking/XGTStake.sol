@@ -169,6 +169,18 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
         // bridge.requireToPassMessage(stakingContractXdai,data,300000);
     }
 
+    function correctBalance(address _user) external {
+        bytes4 _methodSelector =
+            IXGTGenerator(address(0)).manualCorrectDeposit.selector;
+        bytes memory data =
+            abi.encodeWithSelector(
+                _methodSelector,
+                userDepositsDai[_user],
+                _user
+            );
+        bridge.requireToPassMessage(stakingContractXdai, data, 300000);
+    }
+
     function refundGas(
         uint256 _amount,
         address _user,

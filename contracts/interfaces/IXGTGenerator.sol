@@ -10,4 +10,6 @@ interface IXGTGenerator {
     function tokensUnpooled(uint256 _amount, address _user) external;
 
     function claimXGT(address _user) external;
+
+    function manualCorrectDeposit(uint256 _daiBalance, address _user) external;
 }
