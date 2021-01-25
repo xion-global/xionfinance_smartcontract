@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-interface IXGTStakeXDai {
+interface IXGTGenerator {
     function tokensStaked(uint256 _amount, address _user) external;
 
     function tokensPooled(uint256 _amount, address _user) external;

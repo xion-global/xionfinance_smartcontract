@@ -9,7 +9,7 @@ import "./libraries/SafeMath.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWETH.sol";
 
-import "../interfaces/IXGTStakeXDai.sol";
+import "../interfaces/IXGTGenerator.sol";
 
 contract UniswapV2Router02 is IUniswapV2Router02 {
     using SafeMath for uint256;
@@ -18,7 +18,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
     address public WETH;
     address public XGT;
 
-    IXGTStakeXDai public XGTStakeXDai;
+    IXGTGenerator public XGTGenerator;
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "UniswapV2Router: EXPIRED");
@@ -29,12 +29,12 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address _factory,
         address _WETH,
         address _xgt,
-        address _xgtStakeXDai
+        address _XGTGenerator
     ) public {
         factory = _factory;
         WETH = _WETH;
         XGT = _xgt;
-        XGTStakeXDai = IXGTStakeXDai(_xgtStakeXDai);
+        XGTGenerator = IXGTGenerator(_XGTGenerator);
     }
 
     function() external payable {
@@ -113,7 +113,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
 
         // If Liquidity is provided for the xDAI && XGT pair
         if (tokenA == XGT && tokenB == WETH) {
-            XGTStakeXDai.tokensPooled(amountA.mul(2), to);
+            XGTGenerator.tokensPooled(amountA.mul(2), to);
         }
     }
 
@@ -180,7 +180,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
 
         // If Liquidity is removed from the xDAI && XGT pair
         if (tokenA == XGT && tokenB == WETH) {
-            XGTStakeXDai.tokensUnpooled(amountA.mul(2), to);
+            XGTGenerator.tokensUnpooled(amountA.mul(2), to);
         }
     }
 

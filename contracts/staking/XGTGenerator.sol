@@ -6,7 +6,7 @@ import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTToken.sol";
 
-contract XGTStakeXDai is Initializable, OpenZeppelinUpgradesOwnable {
+contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
     using SafeMath for uint256;
 
     IBridgeContract public bridge;

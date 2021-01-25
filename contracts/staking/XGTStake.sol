@@ -5,11 +5,11 @@ import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
 import "../interfaces/ICToken.sol";
 import "../interfaces/IBridgeContract.sol";
-import "../interfaces/IXGTStakeXDai.sol";
+import "../interfaces/IXGTGenerator.sol";
 import "../interfaces/IPERC20.sol";
 import "../interfaces/IChainlinkOracle.sol";
 
-contract XGTStakeMainnet is Initializable, OpenZeppelinUpgradesOwnable {
+contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
     using SafeMath for uint256;
 
     IPERC20 public stakeToken;
@@ -96,7 +96,7 @@ contract XGTStakeMainnet is Initializable, OpenZeppelinUpgradesOwnable {
         userDepositsCDai[_user] = userDepositsCDai[_user].add(cDai);
         totalDeposits = totalDeposits.add(_amount);
 
-        // bytes4 _methodSelector = IXGTStakeXDai(address(0)).tokensDeposited.selector;
+        // bytes4 _methodSelector = IXGTGenerator(address(0)).tokensDeposited.selector;
         // bytes memory data = abi.encodeWithSelector(_methodSelector, _amount, _user);
         // bridge.requireToPassMessage(stakingContractXdai,data,300000);
     }
@@ -164,7 +164,7 @@ contract XGTStakeMainnet is Initializable, OpenZeppelinUpgradesOwnable {
             "XGTSTAKE-USER-TRANSFER-FAILED"
         );
 
-        // bytes4 _methodSelector = IXGTStakeXDai(address(0)).tokensWithdrawn.selector;
+        // bytes4 _methodSelector = IXGTGenerator(address(0)).tokensWithdrawn.selector;
         // bytes memory data = abi.encodeWithSelector(_methodSelector, _amount, _user);
         // bridge.requireToPassMessage(stakingContractXdai,data,300000);
     }
