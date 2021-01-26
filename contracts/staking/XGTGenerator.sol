@@ -14,11 +14,13 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
     IXGTToken public xgt;
     IUniswapV2Pair public xgtpair;
 
-    address public stakingContractMainnet;
+    mapping(address => bool) public stakingContractsMainnet;
     address public poolRouterContract;
 
     uint256 public xgtGenerationRateStake;
     uint256 public xgtGenerationRatePool;
+
+    uint256 public xgtGenerationFunds;
 
     bool public paused = false;
 
@@ -45,36 +47,57 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         address _poolRouter,
         address _xgtPair,
         uint256 _initialxgtGenerationRateStake,
-        uint256 _initialxgtGenerationRatePool
+        uint256 _initialxgtGenerationRatePool,
+        uint256 _generationFunds
     ) public initializer {
         bridge = IBridgeContract(_bridge);
         xgt = IXGTToken(_xgt);
         poolRouterContract = _poolRouter;
         xgtpair = IUniswapV2Pair(_xgtPair);
-        stakingContractMainnet = _stakingContractMainnet;
+        stakingContractsMainnet[_stakingContractMainnet] = true;
         xgtGenerationRateStake = _initialxgtGenerationRateStake;
         xgtGenerationRatePool = _initialxgtGenerationRatePool;
+        xgtGenerationFunds = _generationFunds;
+        require(
+            xgt.balanceOf(address(this)) == xgtGenerationFunds,
+            "XGTGEN-FUNDS-MISMATCH"
+        );
     }
 
-    function togglePauseContract(bool _pause) public onlyOwner {
+    function togglePauseContract(bool _pause) external onlyOwner {
         paused = _pause;
     }
 
+    function updateMainnetContracts(
+        address _stakingContractMainnet,
+        bool _active
+    ) external onlyOwner {
+        stakingContractsMainnet[_stakingContractMainnet] = _active;
+    }
+
     function updatexgtGenerationRateStake(uint256 _newxgtGenerationRateStake)
-        public
+        external
         onlyOwner
     {
         xgtGenerationRateStake = _newxgtGenerationRateStake;
     }
 
     function updatexgtGenerationRatePool(uint256 _newxgtGenerationRatePool)
-        public
+        external
         onlyOwner
     {
         xgtGenerationRatePool = _newxgtGenerationRatePool;
     }
 
-    function updatePoolRouter(address _newPoolRouter) public onlyOwner {
+    function addGenerationFunds(uint256 _amount) external {
+        require(
+            xgt.transferFrom(msg.sender, address(this), _amount),
+            "XGTGEN-FAILED-TRANSFER"
+        );
+        xgtGenerationFunds = xgtGenerationFunds.add(_amount);
+    }
+
+    function updatePoolRouter(address _newPoolRouter) external onlyOwner {
         poolRouterContract = _newPoolRouter;
     }
 
@@ -82,10 +105,10 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         external
         onlyIfNotPaused
     {
-        require(msg.sender == address(bridge), "XGTSTAKE-NOT-BRIDGE");
+        require(msg.sender == address(bridge), "XGTGEN-NOT-BRIDGE");
         require(
-            bridge.messageSender() == stakingContractMainnet,
-            "XGTSTAKE-NOT-MAINNET-CONTRACT"
+            stakingContractsMainnet[bridge.messageSender()],
+            "XGTGEN-NOT-MAINNET-CONTRACT"
         );
         userDAITokens[_user] = userDAITokens[_user].add(_amount);
         _startGeneration(_amount, _user, xgtGenerationRateStake);
@@ -95,7 +118,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         external
         onlyIfNotPaused
     {
-        require(msg.sender == poolRouterContract, "XGTSTAKE-NOT-POOL-ROUTER");
+        require(msg.sender == poolRouterContract, "XGTGEN-NOT-POOL-ROUTER");
         userPoolTokens[_user] = userPoolTokens[_user].add(_amount);
         _startGeneration(_amount, _user, xgtGenerationRatePool);
     }
@@ -134,10 +157,10 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         external
         onlyIfNotPaused
     {
-        require(msg.sender == address(bridge), "XGTSTAKE-NOT-BRIDGE");
+        require(msg.sender == address(bridge), "XGTGEN-NOT-BRIDGE");
         require(
-            bridge.messageSender() == stakingContractMainnet,
-            "XGTSTAKE-NOT-MAINNET-CONTRACT"
+            stakingContractsMainnet[bridge.messageSender()],
+            "XGTGEN-NOT-MAINNET-CONTRACT"
         );
 
         userDAITokens[_user] = userDAITokens[_user].sub(_amount);
@@ -148,7 +171,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         external
         onlyIfNotPaused
     {
-        require(msg.sender == poolRouterContract, "XGTSTAKE-NOT-POOL-ROUTER");
+        require(msg.sender == poolRouterContract, "XGTGEN-NOT-POOL-ROUTER");
         userPoolTokens[_user] = userPoolTokens[_user].sub(_amount);
         _stopGeneration(_amount, _user);
     }
@@ -201,10 +224,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         }
 
         // Just in case, remaining amount should be zero now
-        require(
-            remainingAmount == 0,
-            "XGTSTAKE-WITHDRAW-NOT-EXECUTED-CORRECTLY"
-        );
+        require(remainingAmount == 0, "XGTGEN-WITHDRAW-NOT-EXECUTED-CORRECTLY");
     }
 
     // In case there was a malfunction in contract communication, this
@@ -225,10 +245,10 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
     // In case the bridge was not working/malfunctioned, anyone can call a function
     // on mainnet to correct this in a trustless way
     function manualCorrectDeposit(uint256 _daiBalance, address _user) external {
-        require(msg.sender == address(bridge), "XGTSTAKE-NOT-BRIDGE");
+        require(msg.sender == address(bridge), "XGTGEN-NOT-BRIDGE");
         require(
-            bridge.messageSender() == stakingContractMainnet,
-            "XGTSTAKE-NOT-MAINNET-CONTRACT"
+            stakingContractsMainnet[bridge.messageSender()],
+            "XGTGEN-NOT-MAINNET-CONTRACT"
         );
         if (userDAITokens[_user] != _daiBalance) {
             if (userDAITokens[_user] > _daiBalance) {
@@ -243,11 +263,13 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
 
     function claimXGT(address _user) public onlyIfNotPaused {
         uint256 xgtToClaim = getUnclaimedXGT(_user);
-        if (xgtToClaim > 0) {
-            require(xgt.mint(_user, xgtToClaim), "XGTSTAKE-MINT-FAILED");
+        if (xgtToClaim > 0 && xgtGenerationFunds >= xgtToClaim) {
+            require(
+                xgt.transferFrom(address(this), _user, xgtToClaim),
+                "XGTGEN-TRANSFER-FAILED"
+            );
+            specificUserDeposits[_user].lastTimeClaimed = now;
         }
-
-        specificUserDeposits[_user].lastTimeClaimed = now;
     }
 
     function getUnclaimedXGT(address _user) public view returns (uint256) {
