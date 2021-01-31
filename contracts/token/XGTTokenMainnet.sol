@@ -47,4 +47,20 @@ contract XGTTokenMainnet is
             abi.encodeWithSelector(_methodSelector, msg.sender, _amount);
         bridge.requireToPassMessage(xDaiContract, data, 300000);
     }
+
+    // Safety override
+    function transfer(address recipient, uint256 amount) public returns (bool) {
+        require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
+        return super.transfer(recipient, amount);
+    }
+
+    // Safety override
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public returns (bool) {
+        require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
+        return super.transferFrom(sender, recipient, amount);
+    }
 }
