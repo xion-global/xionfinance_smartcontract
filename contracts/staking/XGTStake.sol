@@ -3,27 +3,38 @@ pragma solidity ^0.5.16;
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
+import "../metatx/EIP712MetaTransaction.sol";
+import "../metatx/EIP712Base.sol";
 import "../interfaces/ICToken.sol";
+import "../interfaces/IComptroller.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTGenerator.sol";
 import "../interfaces/IPERC20.sol";
-import "../interfaces/IChainlinkOracle.sol";
 
-contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
+// import "../interfaces/IChainlinkOracle.sol";
+
+contract XGTStake is
+    Initializable,
+    OpenZeppelinUpgradesOwnable,
+    EIP712MetaTransaction("XGTStake", "1")
+{
     using SafeMath for uint256;
 
     IPERC20 public stakeToken;
     ICToken public cToken;
+    IComptroller public comptroller;
+    IPERC20 public comp;
     IBridgeContract public bridge;
-    IChainlinkOracle public gasOracle;
-    IChainlinkOracle public ethDaiOracle;
+    // IChainlinkOracle public gasOracle;
+    // IChainlinkOracle public ethDaiOracle;
 
-    address public _xgtGeneratorContract;
+    address public xgtGeneratorContract;
+    address public xgtFund;
 
     bool public paused = false;
-    uint256 public averageGasPerDeposit = 150000;
-    uint256 public averageGasPerWithdraw = 150000;
-    mapping(address => bool) public metaTransactors;
+    // uint256 public averageGasPerDeposit = 150000;
+    // uint256 public averageGasPerWithdraw = 150000;
+    // mapping(address => bool) public metaTransactors;
 
     uint256 public interestCut = 250; // Interest Cut in Basis Points (250 = 2.5%)
     address public interestCutReceiver;
@@ -35,50 +46,40 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
     function initialize(
         address _stakeToken,
         address _cToken,
+        address _comptroller,
+        address _comp,
         address _bridge,
-        address __xgtGeneratorContract
+        address _xgtGeneratorContract
     ) public initializer {
         stakeToken = IPERC20(_stakeToken);
         cToken = ICToken(_cToken);
+        comptroller = IComptroller(_comptroller);
+        comp = IPERC20(_comp);
         bridge = IBridgeContract(_bridge);
-        gasOracle = IChainlinkOracle(
-            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
-        );
-        ethDaiOracle = IChainlinkOracle(
-            0x773616E4d11A78F511299002da57A0a94577F1f4
-        );
-        _xgtGeneratorContract = __xgtGeneratorContract;
-        interestCutReceiver = 0xdE8DcD65042db880006421dD3ECA5D94117642d1;
+        // gasOracle = IChainlinkOracle(
+        // 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
+        // );
+        // ethDaiOracle = IChainlinkOracle(
+        // 0x773616E4d11A78F511299002da57A0a94577F1f4
+        // );
+        xgtGeneratorContract = _xgtGeneratorContract;
+        interestCutReceiver = 0x36985f8AA15C02964d8450c930354C70f382bBC3;
     }
 
-    function changeMetaTxAuth(address _user, bool _allowedToExecute)
-        external
-        onlyOwner
-    {
-        metaTransactors[_user] = _allowedToExecute;
-    }
+    // function changeMetaTxAuth(address _user, bool _allowedToExecute)
+    //     external
+    //     onlyOwner
+    // {
+    //     metaTransactors[_user] = _allowedToExecute;
+    // }
 
     function pauseContracts(bool _pause) external onlyOwner {
         paused = _pause;
     }
 
     function depositTokens(uint256 _amount) external notPaused {
-        _depositTokens(_amount, msg.sender);
-    }
-
-    function depositTokensForUser(uint256 _amount, address _user)
-        external
-        notPaused
-    {
-        require(metaTransactors[msg.sender], "XGTSTAKE-NOT-ALLOWED");
-        //uint256 remainder = refundGas(_amount, _user, averageGasPerDeposit);
-        uint256 remainder = _amount;
-        _depositTokens(remainder, _user);
-    }
-
-    function _depositTokens(uint256 _amount, address _user) internal {
         require(
-            stakeToken.transferFrom(_user, address(this), _amount),
+            stakeToken.transferFrom(msgSender(), address(this), _amount),
             "XGTSTAKE-DAI-TRANSFER-FAILED"
         );
         require(
@@ -90,34 +91,22 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
         require(cToken.mint(_amount) == 0, "XGTSTAKE-COMPOUND-DEPOSIT-FAILED");
         uint256 cDai = cToken.balanceOf(address(this)).sub(balanceBefore);
 
-        userDepositsDai[_user] = userDepositsDai[_user].add(_amount);
-        userDepositsCDai[_user] = userDepositsCDai[_user].add(cDai);
+        userDepositsDai[msgSender()] = userDepositsDai[msgSender()].add(
+            _amount
+        );
+        userDepositsCDai[msgSender()] = userDepositsCDai[msgSender()].add(cDai);
         totalDeposits = totalDeposits.add(_amount);
 
         bytes4 _methodSelector =
             IXGTGenerator(address(0)).tokensStaked.selector;
         bytes memory data =
-            abi.encodeWithSelector(_methodSelector, _amount, _user);
-        bridge.requireToPassMessage(_xgtGeneratorContract, data, 300000);
-    }
-
-    function withdrawTokensForUser(uint256 _amount, address _user)
-        external
-        notPaused
-    {
-        require(metaTransactors[msg.sender], "XGTSTAKE-NOT-ALLOWED");
-        // uint256 remainder = refundGas(_amount, _user, averageGasPerWithdraw);
-        uint256 remainder = _amount;
-        _depositTokens(remainder, _user);
+            abi.encodeWithSelector(_methodSelector, _amount, msgSender());
+        bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
     }
 
     function withdrawTokens(uint256 _amount) external notPaused {
-        _withdrawTokens(_amount, msg.sender);
-    }
-
-    function _withdrawTokens(uint256 _amount, address _user) internal {
-        uint256 userDepositDai = userDepositsDai[_user];
-        uint256 userDepositCDai = userDepositsCDai[_user];
+        uint256 userDepositDai = userDepositsDai[msgSender()];
+        uint256 userDepositCDai = userDepositsCDai[msgSender()];
         require(userDepositDai > 0, "XGTSTAKE-NO-DEPOSIT");
 
         // If user puts in MAX_UINT256, skip this calcualtion
@@ -136,8 +125,8 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
         }
 
         totalDeposits = totalDeposits.sub(amount);
-        userDepositsDai[_user] = userDepositDai.sub(amount);
-        userDepositsCDai[_user] = userDepositCDai.sub(cDaiToRedeem);
+        userDepositsDai[msgSender()] = userDepositDai.sub(amount);
+        userDepositsCDai[msgSender()] = userDepositCDai.sub(cDaiToRedeem);
 
         uint256 before = stakeToken.balanceOf(address(this));
         require(
@@ -160,15 +149,15 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
 
         // Transfer the rest to the user
         require(
-            stakeToken.transfer(_user, diff.sub(cut)),
+            stakeToken.transfer(msgSender(), diff.sub(cut)),
             "XGTSTAKE-USER-TRANSFER-FAILED"
         );
 
         bytes4 _methodSelector =
             IXGTGenerator(address(0)).tokensUnstaked.selector;
         bytes memory data =
-            abi.encodeWithSelector(_methodSelector, _amount, _user);
-        bridge.requireToPassMessage(_xgtGeneratorContract, data, 300000);
+            abi.encodeWithSelector(_methodSelector, _amount, msgSender());
+        bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
     }
 
     function correctBalance(address _user) external {
@@ -180,30 +169,41 @@ contract XGTStake is Initializable, OpenZeppelinUpgradesOwnable {
                 userDepositsDai[_user],
                 _user
             );
-        bridge.requireToPassMessage(_xgtGeneratorContract, data, 300000);
+        bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
     }
 
-    function refundGas(
-        uint256 _amount,
-        address _user,
-        uint256 _gasAmount
-    ) internal returns (uint256) {
-        int256 latestGasPrice = gasOracle.latestAnswer();
-        uint256 latestEthPrice =
-            uint256(1 ether).div(uint256(ethDaiOracle.latestAnswer()));
-        uint256 amount = _amount;
-        if (latestGasPrice >= 0 && latestEthPrice >= 0) {
-            uint256 refund =
-                uint256(latestGasPrice).mul(_gasAmount).mul(latestEthPrice);
-            require(refund < _amount, "XGTSTAKE-DEPOSIT-TOO-SMALL");
-            amount = _amount.sub(refund);
+    function claimComp() external {
+        comptroller.claimComp(address(this));
+        uint256 balance = comp.balanceOf(address(this));
+        if (balance > 0) {
             require(
-                stakeToken.transferFrom(_user, msg.sender, refund),
-                "XGTSTAKE-DAI-REFUND-TRANSFER-FAILED"
+                comp.transferFrom(address(this), interestCutReceiver, balance),
+                "XGTSTAKE-TRANSFER-FAILED"
             );
         }
-        return amount;
     }
+
+    // function refundGas(
+    //     uint256 _amount,
+    //     address _user,
+    //     uint256 _gasAmount
+    // ) internal returns (uint256) {
+    //     int256 latestGasPrice = gasOracle.latestAnswer();
+    //     uint256 latestEthPrice =
+    //         uint256(1 ether).div(uint256(ethDaiOracle.latestAnswer()));
+    //     uint256 amount = _amount;
+    //     if (latestGasPrice >= 0 && latestEthPrice >= 0) {
+    //         uint256 refund =
+    //             uint256(latestGasPrice).mul(_gasAmount).mul(latestEthPrice);
+    //         require(refund < _amount, "XGTSTAKE-DEPOSIT-TOO-SMALL");
+    //         amount = _amount.sub(refund);
+    //         require(
+    //             stakeToken.transferFrom(_user, msgSender(), refund),
+    //             "XGTSTAKE-DAI-REFUND-TRANSFER-FAILED"
+    //         );
+    //     }
+    //     return amount;
+    // }
 
     modifier notPaused() {
         require(!paused, "XGTSTAKE-Paused");

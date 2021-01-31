@@ -40,9 +40,10 @@ module.exports = {
       network_id: 137,
     },
     mainnet: {
-      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://infura.io/v3/" + process.env.INFURA_KEY),
-      gasPrice: 1 * 1000000000,
-      network_id: 4,
+      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY),
+      gasPrice: 75 * 1000000000,
+      network_id: 1,
+      skipDryRun: true,
     },
   },
 
