@@ -148,6 +148,10 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
                 return;
             }
         }
+        // In case the user doesn't have any deposits yet this will not be
+        // set by claimXGT()
+        specificUserDeposits[_user].lastTimeClaimed = now;
+
         specificUserDeposits[_user].deposits.push(
             DepositPerRate(_amount, _rate)
         );
@@ -264,10 +268,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
     function claimXGT(address _user) public onlyIfNotPaused {
         uint256 xgtToClaim = getUnclaimedXGT(_user);
         if (xgtToClaim > 0 && xgtGenerationFunds >= xgtToClaim) {
-            require(
-                xgt.transferFrom(address(this), _user, xgtToClaim),
-                "XGTGEN-TRANSFER-FAILED"
-            );
+            require(xgt.transfer(_user, xgtToClaim), "XGTGEN-TRANSFER-FAILED");
             specificUserDeposits[_user].lastTimeClaimed = now;
         }
     }
