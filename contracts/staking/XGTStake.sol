@@ -10,8 +10,7 @@ import "../interfaces/IComptroller.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTGenerator.sol";
 import "../interfaces/IPERC20.sol";
-
-// import "../interfaces/IChainlinkOracle.sol";
+import "../interfaces/IChainlinkOracle.sol";
 
 contract XGTStake is
     Initializable,
@@ -25,16 +24,15 @@ contract XGTStake is
     IComptroller public comptroller;
     IPERC20 public comp;
     IBridgeContract public bridge;
-    // IChainlinkOracle public gasOracle;
-    // IChainlinkOracle public ethDaiOracle;
+    IChainlinkOracle public ethDaiOracle;
 
     address public xgtGeneratorContract;
     address public xgtFund;
 
     bool public paused = false;
-    // uint256 public averageGasPerDeposit = 150000;
-    // uint256 public averageGasPerWithdraw = 150000;
-    // mapping(address => bool) public metaTransactors;
+    uint256 public averageGasPerDeposit = 350000;
+    uint256 public averageGasPerWithdraw = 220000;
+    mapping(address => bool) public metaTransactors;
 
     uint256 public interestCut = 250; // Interest Cut in Basis Points (250 = 2.5%)
     address public interestCutReceiver;
@@ -56,22 +54,12 @@ contract XGTStake is
         comptroller = IComptroller(_comptroller);
         comp = IPERC20(_comp);
         bridge = IBridgeContract(_bridge);
-        // gasOracle = IChainlinkOracle(
-        // 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
-        // );
-        // ethDaiOracle = IChainlinkOracle(
-        // 0x773616E4d11A78F511299002da57A0a94577F1f4
-        // );
+        ethDaiOracle = IChainlinkOracle(
+            0x773616E4d11A78F511299002da57A0a94577F1f4
+        );
         xgtGeneratorContract = _xgtGeneratorContract;
         interestCutReceiver = 0x36985f8AA15C02964d8450c930354C70f382bBC3;
     }
-
-    // function changeMetaTxAuth(address _user, bool _allowedToExecute)
-    //     external
-    //     onlyOwner
-    // {
-    //     metaTransactors[_user] = _allowedToExecute;
-    // }
 
     function pauseContracts(bool _pause) external onlyOwner {
         paused = _pause;
@@ -82,29 +70,46 @@ contract XGTStake is
             stakeToken.transferFrom(msgSender(), address(this), _amount),
             "XGTSTAKE-DAI-TRANSFER-FAILED"
         );
+
+        uint256 amountLeft = _amount;
+
+        // If it is a metatx, refund the executor in DAI
+        if (msgSender() != msg.sender) {
+            uint256 refundAmount =
+                calculateRefundAmount(_amount, averageGasPerDeposit);
+            amountLeft = _amount.sub(refundAmount);
+            require(
+                stakeToken.transfer(msg.sender, refundAmount),
+                "XGTSTAKE-DAI-REFUND-FAILED"
+            );
+        }
+
         require(
             stakeToken.approve(address(cToken), _amount),
             "XGTSTAKE-DAI-APPROVE-FAILED"
         );
 
         uint256 balanceBefore = cToken.balanceOf(address(this));
-        require(cToken.mint(_amount) == 0, "XGTSTAKE-COMPOUND-DEPOSIT-FAILED");
+        require(
+            cToken.mint(amountLeft) == 0,
+            "XGTSTAKE-COMPOUND-DEPOSIT-FAILED"
+        );
         uint256 cDai = cToken.balanceOf(address(this)).sub(balanceBefore);
 
         userDepositsDai[msgSender()] = userDepositsDai[msgSender()].add(
-            _amount
+            amountLeft
         );
         userDepositsCDai[msgSender()] = userDepositsCDai[msgSender()].add(cDai);
-        totalDeposits = totalDeposits.add(_amount);
+        totalDeposits = totalDeposits.add(amountLeft);
 
         bytes4 _methodSelector =
             IXGTGenerator(address(0)).tokensStaked.selector;
         bytes memory data =
-            abi.encodeWithSelector(_methodSelector, _amount, msgSender());
+            abi.encodeWithSelector(_methodSelector, amountLeft, msgSender());
         bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
     }
 
-    function withdrawTokens(uint256 _amount) external notPaused {
+    function withdrawTokens(uint256 _amount) external {
         uint256 userDepositDai = userDepositsDai[msgSender()];
         uint256 userDepositCDai = userDepositsCDai[msgSender()];
         require(userDepositDai > 0, "XGTSTAKE-NO-DEPOSIT");
@@ -147,9 +152,21 @@ contract XGTStake is
             );
         }
 
+        uint256 amountLeft = diff.sub(cut);
+        // If it is a metatx, refund the executor in DAI
+        if (msgSender() != msg.sender) {
+            uint256 refundAmount =
+                calculateRefundAmount(amountLeft, averageGasPerWithdraw);
+            amountLeft = amountLeft.sub(refundAmount);
+            require(
+                stakeToken.transfer(msg.sender, refundAmount),
+                "XGTSTAKE-DAI-REFUND-FAILED"
+            );
+        }
+
         // Transfer the rest to the user
         require(
-            stakeToken.transfer(msgSender(), diff.sub(cut)),
+            stakeToken.transfer(msgSender(), amountLeft),
             "XGTSTAKE-USER-TRANSFER-FAILED"
         );
 
@@ -183,27 +200,21 @@ contract XGTStake is
         }
     }
 
-    // function refundGas(
-    //     uint256 _amount,
-    //     address _user,
-    //     uint256 _gasAmount
-    // ) internal returns (uint256) {
-    //     int256 latestGasPrice = gasOracle.latestAnswer();
-    //     uint256 latestEthPrice =
-    //         uint256(1 ether).div(uint256(ethDaiOracle.latestAnswer()));
-    //     uint256 amount = _amount;
-    //     if (latestGasPrice >= 0 && latestEthPrice >= 0) {
-    //         uint256 refund =
-    //             uint256(latestGasPrice).mul(_gasAmount).mul(latestEthPrice);
-    //         require(refund < _amount, "XGTSTAKE-DEPOSIT-TOO-SMALL");
-    //         amount = _amount.sub(refund);
-    //         require(
-    //             stakeToken.transferFrom(_user, msgSender(), refund),
-    //             "XGTSTAKE-DAI-REFUND-TRANSFER-FAILED"
-    //         );
-    //     }
-    //     return amount;
-    // }
+    function calculateRefundAmount(uint256 _amount, uint256 _gasAmount)
+        internal
+        returns (uint256)
+    {
+        uint256 oracleAnswer = uint256(ethDaiOracle.latestAnswer());
+        if (oracleAnswer >= 0) {
+            uint256 refund =
+                tx.gasprice.mul(_gasAmount).mul(
+                    uint256(1 ether).div(oracleAnswer)
+                );
+            require(refund < _amount, "XGTSTAKE-DEPOSIT-TOO-SMALL");
+            return refund;
+        }
+        return 0;
+    }
 
     modifier notPaused() {
         require(!paused, "XGTSTAKE-Paused");
