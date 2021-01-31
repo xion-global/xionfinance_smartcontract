@@ -25,14 +25,15 @@ contract XGTStake is
     IPERC20 public comp;
     IBridgeContract public bridge;
     IChainlinkOracle public ethDaiOracle;
+    IChainlinkOracle public gasOracle;
 
     address public xgtGeneratorContract;
     address public xgtFund;
 
     bool public paused = false;
-    uint256 public averageGasPerDeposit = 350000;
-    uint256 public averageGasPerWithdraw = 220000;
-    mapping(address => bool) public metaTransactors;
+    uint256 public averageGasPerDeposit = 550000;
+    uint256 public averageGasPerWithdraw = 550000;
+    address public refundAddress = 0x8051F6B571f64ef62bAB6FEEe7966b275750D45e;
 
     uint256 public interestCut = 250; // Interest Cut in Basis Points (250 = 2.5%)
     address public interestCutReceiver;
@@ -55,10 +56,13 @@ contract XGTStake is
         comp = IPERC20(_comp);
         bridge = IBridgeContract(_bridge);
         ethDaiOracle = IChainlinkOracle(
-            0x773616E4d11A78F511299002da57A0a94577F1f4
+            0x64EaC61A2DFda2c3Fa04eED49AA33D021AeC8838
+        );
+        gasOracle = IChainlinkOracle(
+            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
         );
         xgtGeneratorContract = _xgtGeneratorContract;
-        interestCutReceiver = 0x36985f8AA15C02964d8450c930354C70f382bBC3;
+        interestCutReceiver = 0xdE8DcD65042db880006421dD3ECA5D94117642d1;
     }
 
     function pauseContracts(bool _pause) external onlyOwner {
@@ -75,11 +79,11 @@ contract XGTStake is
 
         // If it is a metatx, refund the executor in DAI
         if (msgSender() != msg.sender) {
-            uint256 refundAmount =
-                calculateRefundAmount(_amount, averageGasPerDeposit);
+            uint256 refundAmount = currentRefundCostDeposit();
+            require(refundAmount < _amount, "XGTSTAKE-DEPOSIT-TOO-SMALL");
             amountLeft = _amount.sub(refundAmount);
             require(
-                stakeToken.transfer(msg.sender, refundAmount),
+                stakeToken.transfer(refundAddress, refundAmount),
                 "XGTSTAKE-DAI-REFUND-FAILED"
             );
         }
@@ -155,11 +159,11 @@ contract XGTStake is
         uint256 amountLeft = diff.sub(cut);
         // If it is a metatx, refund the executor in DAI
         if (msgSender() != msg.sender) {
-            uint256 refundAmount =
-                calculateRefundAmount(amountLeft, averageGasPerWithdraw);
+            uint256 refundAmount = currentRefundCostWithdraw();
+            require(refundAmount < _amount, "XGTSTAKE-WITHDRAW-TOO-SMALL");
             amountLeft = amountLeft.sub(refundAmount);
             require(
-                stakeToken.transfer(msg.sender, refundAmount),
+                stakeToken.transfer(refundAddress, refundAmount),
                 "XGTSTAKE-DAI-REFUND-FAILED"
             );
         }
@@ -200,17 +204,26 @@ contract XGTStake is
         }
     }
 
-    function calculateRefundAmount(uint256 _amount, uint256 _gasAmount)
-        internal
-        returns (uint256)
-    {
-        uint256 oracleAnswer = uint256(ethDaiOracle.latestAnswer());
-        if (oracleAnswer >= 0) {
+    function currentRefundCostDeposit() public returns (uint256) {
+        return _getTXCost(averageGasPerDeposit);
+    }
+
+    function currentRefundCostWithdraw() public returns (uint256) {
+        return _getTXCost(averageGasPerWithdraw);
+    }
+
+    function _getTXCost(uint256 _gasAmount) internal returns (uint256) {
+        uint256 oracleAnswerPrice = uint256(ethDaiOracle.latestAnswer());
+        // uint256 oracleAnswerGas = uint256(gasOracle.latestAnswer());
+        // if (oracleAnswerPrice > 0 && oracleAnswerGas > 0) {
+        if (oracleAnswerPrice > 0) {
             uint256 refund =
-                tx.gasprice.mul(_gasAmount).mul(
-                    uint256(1 ether).div(oracleAnswer)
+                (
+                    uint256(4500000000)
+                        .mul(_gasAmount)
+                        .mul(uint256(1000000))
+                        .div(oracleAnswerPrice)
                 );
-            require(refund < _amount, "XGTSTAKE-DEPOSIT-TOO-SMALL");
             return refund;
         }
         return 0;
