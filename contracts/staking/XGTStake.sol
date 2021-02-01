@@ -31,9 +31,9 @@ contract XGTStake is
     address public xgtFund;
 
     bool public paused = false;
-    uint256 public averageGasPerDeposit = 550000;
-    uint256 public averageGasPerWithdraw = 550000;
-    address public refundAddress = 0x8051F6B571f64ef62bAB6FEEe7966b275750D45e;
+    uint256 public averageGasPerDeposit = 500000;
+    uint256 public averageGasPerWithdraw = 500000;
+    address public refundAddress;
 
     uint256 public interestCut = 250; // Interest Cut in Basis Points (250 = 2.5%)
     address public interestCutReceiver;
@@ -48,7 +48,9 @@ contract XGTStake is
         address _comptroller,
         address _comp,
         address _bridge,
-        address _xgtGeneratorContract
+        address _xgtGeneratorContract,
+        address _interestAddress,
+        address _refundAddress
     ) public initializer {
         stakeToken = IPERC20(_stakeToken);
         cToken = ICToken(_cToken);
@@ -62,11 +64,37 @@ contract XGTStake is
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
         );
         xgtGeneratorContract = _xgtGeneratorContract;
-        interestCutReceiver = 0xdE8DcD65042db880006421dD3ECA5D94117642d1;
+        interestCutReceiver = _interestAddress;
+        refundAddress = _refundAddress;
     }
 
     function pauseContracts(bool _pause) external onlyOwner {
         paused = _pause;
+    }
+
+    function changeRefundAddress(address _address) external onlyOwner {
+        refundAddress = _address;
+    }
+
+    function changeInterestAddress(address _address) external onlyOwner {
+        interestCutReceiver = _address;
+    }
+
+    function changeGasOracle(address _address) external onlyOwner {
+        gasOracle = IChainlinkOracle(_address);
+    }
+
+    function changePriceOracle(address _address) external onlyOwner {
+        ethDaiOracle = IChainlinkOracle(_address);
+    }
+
+    function changeBridge(address _address) external onlyOwner {
+        bridge = IBridgeContract(_address);
+    }
+
+    function changeInterestCut(uint256 _newValue) external onlyOwner {
+        require(_newValue <= 9999, "XGTSTAKE-INVALID-CUT");
+        interestCut = _newValue;
     }
 
     function depositTokens(uint256 _amount) external notPaused {
