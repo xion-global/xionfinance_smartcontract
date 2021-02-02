@@ -1,8 +1,7 @@
 pragma solidity ^0.5.16;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
 import "../metatx/EIP712MetaTransaction.sol";
 import "../metatx/EIP712Base.sol";
 import "../interfaces/ICToken.sol";
@@ -12,11 +11,7 @@ import "../interfaces/IXGTGenerator.sol";
 import "../interfaces/IPERC20.sol";
 import "../interfaces/IChainlinkOracle.sol";
 
-contract XGTStake is
-    Initializable,
-    OpenZeppelinUpgradesOwnable,
-    EIP712MetaTransaction("XGTStake", "1")
-{
+contract XGTStake is Initializable, Ownable, EIP712MetaTransaction {
     using SafeMath for uint256;
 
     IPERC20 public stakeToken;
@@ -30,28 +25,36 @@ contract XGTStake is
     address public xgtGeneratorContract;
     address public xgtFund;
 
-    bool public paused = false;
-    uint256 public averageGasPerDeposit = 500000;
-    uint256 public averageGasPerWithdraw = 500000;
+    bool public paused;
+    uint256 public averageGasPerDeposit;
+    uint256 public averageGasPerWithdraw;
     address public refundAddress;
 
-    uint256 public interestCut = 250; // Interest Cut in Basis Points (250 = 2.5%)
+    uint256 public interestCut; // Interest Cut in Basis Points (250 = 2.5%)
     address public interestCutReceiver;
 
     mapping(address => uint256) public userDepositsDai;
     mapping(address => uint256) public userDepositsCDai;
     uint256 public totalDeposits;
 
-    function initialize(
+    function initializeStake(
         address _stakeToken,
         address _cToken,
         address _comptroller,
         address _comp,
         address _bridge,
-        address _xgtGeneratorContract,
         address _interestAddress,
         address _refundAddress
-    ) public initializer {
+    ) public {
+        require(
+            interestCutReceiver == address(0),
+            "XGTSTAKE-ALREADY-INITIALIZED"
+        );
+        initMeta("XGTStake", "1");
+        averageGasPerDeposit = 500000;
+        averageGasPerWithdraw = 500000;
+        interestCut = 250;
+        _transferOwnership(msg.sender);
         stakeToken = IPERC20(_stakeToken);
         cToken = ICToken(_cToken);
         comptroller = IComptroller(_comptroller);
@@ -63,9 +66,16 @@ contract XGTStake is
         gasOracle = IChainlinkOracle(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
         );
-        xgtGeneratorContract = _xgtGeneratorContract;
         interestCutReceiver = _interestAddress;
         refundAddress = _refundAddress;
+    }
+
+    function setXGTGeneratorContract(address _address) external {
+        require(
+            xgtGeneratorContract == address(0),
+            "XGTSTAKE-GEN-ADDR-ALREADY-SET"
+        );
+        xgtGeneratorContract = _address;
     }
 
     function pauseContracts(bool _pause) external onlyOwner {
@@ -95,6 +105,14 @@ contract XGTStake is
     function changeInterestCut(uint256 _newValue) external onlyOwner {
         require(_newValue <= 9999, "XGTSTAKE-INVALID-CUT");
         interestCut = _newValue;
+    }
+
+    function changeGasCosts(uint256 _deposit, uint256 _withdraw)
+        external
+        onlyOwner
+    {
+        averageGasPerDeposit = _deposit;
+        averageGasPerWithdraw = _withdraw;
     }
 
     function depositTokens(uint256 _amount) external notPaused {
@@ -138,7 +156,7 @@ contract XGTStake is
             IXGTGenerator(address(0)).tokensStaked.selector;
         bytes memory data =
             abi.encodeWithSelector(_methodSelector, amountLeft, msgSender());
-        bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
+        bridge.requireToPassMessage(xgtGeneratorContract, data, 750000);
     }
 
     function withdrawTokens(uint256 _amount) external {
@@ -206,7 +224,7 @@ contract XGTStake is
             IXGTGenerator(address(0)).tokensUnstaked.selector;
         bytes memory data =
             abi.encodeWithSelector(_methodSelector, _amount, msgSender());
-        bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
+        bridge.requireToPassMessage(xgtGeneratorContract, data, 750000);
     }
 
     function correctBalance(address _user) external {
@@ -218,7 +236,7 @@ contract XGTStake is
                 userDepositsDai[_user],
                 _user
             );
-        bridge.requireToPassMessage(xgtGeneratorContract, data, 300000);
+        bridge.requireToPassMessage(xgtGeneratorContract, data, 750000);
     }
 
     function claimComp() external {
@@ -242,12 +260,11 @@ contract XGTStake is
 
     function _getTXCost(uint256 _gasAmount) internal returns (uint256) {
         uint256 oracleAnswerPrice = uint256(ethDaiOracle.latestAnswer());
-        // uint256 oracleAnswerGas = uint256(gasOracle.latestAnswer());
-        // if (oracleAnswerPrice > 0 && oracleAnswerGas > 0) {
-        if (oracleAnswerPrice > 0) {
+        uint256 oracleAnswerGas = uint256(gasOracle.latestAnswer());
+        if (oracleAnswerPrice > 0 && oracleAnswerGas > 0) {
             uint256 refund =
                 (
-                    uint256(4500000000)
+                    uint256(oracleAnswerGas)
                         .mul(_gasAmount)
                         .mul(uint256(1000000))
                         .div(oracleAnswerPrice)

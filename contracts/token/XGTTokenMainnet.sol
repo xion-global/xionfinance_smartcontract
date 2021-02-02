@@ -1,17 +1,16 @@
 pragma solidity ^0.5.16;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Mintable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Burnable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Mintable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Burnable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Detailed.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTToken.sol";
 
 contract XGTTokenMainnet is
     Initializable,
-    OpenZeppelinUpgradesOwnable,
+    Ownable,
     ERC20Detailed,
     ERC20Mintable,
     ERC20Burnable
@@ -21,13 +20,15 @@ contract XGTTokenMainnet is
     address public xDaiContract;
     IBridgeContract public bridge;
 
-    function initialize(address _xDaiContract, address _bridge)
-        public
-        initializer
-    {
-        ERC20Detailed.initialize("XionGlobal Token", "XGT", 18);
+    function initializeToken(address _xDaiContract, address _bridge) public {
+        require(xDaiContract == address(0), "XGT-ALREADY-INITIALIZED");
+        _transferOwnership(msg.sender);
         xDaiContract = _xDaiContract;
         bridge = IBridgeContract(_bridge);
+    }
+
+    function setBridge(address _address) external onlyOwner {
+        bridge = IBridgeContract(_address);
     }
 
     function transferredToMainnet(address _user, uint256 _amount) external {

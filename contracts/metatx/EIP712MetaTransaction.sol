@@ -1,10 +1,13 @@
 pragma solidity 0.5.16;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
 import "./EIP712Base.sol";
 
 contract EIP712MetaTransaction is EIP712Base {
     using SafeMath for uint256;
+
+    bool internal initializedAlreadyMeta;
+
     bytes32 private constant META_TRANSACTION_TYPEHASH =
         keccak256(
             bytes(
@@ -30,10 +33,11 @@ contract EIP712MetaTransaction is EIP712Base {
         bytes functionSignature;
     }
 
-    constructor(string memory name, string memory version)
-        public
-        EIP712Base(name, version)
-    {}
+    function initMeta(string memory name, string memory version) public {
+        require(!initializedAlreadyMeta, "META-ALREADY-INITIALIZED");
+        initializedAlreadyMeta = true;
+        initBase(name, version);
+    }
 
     function convertBytesToBytes4(bytes memory inBytes)
         internal

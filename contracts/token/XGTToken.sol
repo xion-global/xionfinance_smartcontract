@@ -1,20 +1,14 @@
 pragma solidity ^0.5.16;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Mintable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Mintable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Detailed.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTTokenMainnet.sol";
 import "../interfaces/IVesting.sol";
 
-contract XGTToken is
-    Initializable,
-    OpenZeppelinUpgradesOwnable,
-    ERC20Detailed,
-    ERC20Mintable
-{
+contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
     using SafeMath for uint256;
 
     address public subscriptionContract;
@@ -43,8 +37,9 @@ contract XGTToken is
         uint256[] memory _vestedAmountsTeam,
         address[] memory _vestedAddressesCommunity,
         uint256[] memory _vestedAmountsCommunity
-    ) public initializer {
-        ERC20Detailed.initialize("XionGlobal Token", "XGT", 18);
+    ) public {
+        require(subscriptionContract == address(0), "XGT-ALREADY-INITIALIZED");
+        _transferOwnership(msg.sender);
         subscriptionContract = _subscriptionContract;
 
         // General token utility allocations
@@ -91,7 +86,7 @@ contract XGTToken is
         index = index + _vestedAddressesCommunity.length;
 
         require(
-            vesting.initialize(
+            vesting.initializeVesting(
                 address(this),
                 beneficiaries,
                 XION_RESERVE,
@@ -99,7 +94,8 @@ contract XGTToken is
                 _vestedAmountsTeam,
                 _vestedAmountsCommunity,
                 undistributedTeam,
-                undistributedCommunity
+                undistributedCommunity,
+                msg.sender
             ),
             "XGT-FAILED-TO-INIT-VESTING-CONTRACT"
         );
@@ -109,12 +105,20 @@ contract XGTToken is
         mainnetContract = _mainnetContract;
     }
 
+    function setBridge(address _address) external onlyOwner {
+        bridge = IBridgeContract(_address);
+    }
+
     function addMinter(address _address) public onlyOwner {
         _addMinter(_address);
     }
 
     function removeMinter(address _address) public onlyOwner {
         _removeMinter(_address);
+    }
+
+    function setSubscriptionContract(address _address) external onlyOwner {
+        subscriptionContract = _address;
     }
 
     function usedXGT(address _user, uint256 _amount) external returns (bool) {
@@ -140,7 +144,7 @@ contract XGTToken is
             IXGTTokenMainnet(address(0)).transferredToMainnet.selector;
         bytes memory data =
             abi.encodeWithSelector(_methodSelector, msg.sender, _amount);
-        bridge.requireToPassMessage(mainnetContract, data, 300000);
+        bridge.requireToPassMessage(mainnetContract, data, 500000);
     }
 
     // Safety override

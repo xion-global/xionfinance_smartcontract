@@ -1,13 +1,12 @@
 pragma solidity ^0.5.16;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTToken.sol";
 import "../liquiditypool/interfaces/IUniswapV2Pair.sol";
 
-contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
+contract XGTGenerator is Initializable, Ownable {
     using SafeMath for uint256;
 
     IBridgeContract public bridge;
@@ -22,7 +21,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
 
     uint256 public xgtGenerationFunds;
 
-    bool public paused = false;
+    bool public paused;
 
     mapping(address => UserDeposits) public specificUserDeposits;
     mapping(address => uint256) public totalUserDeposit;
@@ -40,7 +39,7 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         uint256 generationRate;
     }
 
-    function initialize(
+    function initializeGenerator(
         address _bridge,
         address _stakingContractMainnet,
         address _xgt,
@@ -49,7 +48,11 @@ contract XGTGenerator is Initializable, OpenZeppelinUpgradesOwnable {
         uint256 _initialxgtGenerationRateStake,
         uint256 _initialxgtGenerationRatePool,
         uint256 _generationFunds
-    ) public initializer {
+    ) public {
+        require(
+            poolRouterContract == address(0),
+            "XGTGENERATOR-ALREADY-INITIALIZED"
+        );
         bridge = IBridgeContract(_bridge);
         xgt = IXGTToken(_xgt);
         poolRouterContract = _poolRouter;

@@ -1,11 +1,10 @@
 pragma solidity ^0.5.16;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/upgrades/contracts/ownership/Ownable.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
+import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
 import "../interfaces/IXGTToken.sol";
 
-contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
+contract Vesting is Initializable, Ownable {
     using SafeMath for uint256;
     IXGTToken public xgtToken;
 
@@ -35,7 +34,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
     uint256 public totalUnlockedTeamTokens;
     uint256 public distributedTeamTokens;
 
-    function initialize(
+    function initializeVesting(
         address _tokenContract,
         address[] memory _beneficiaries,
         uint256 _reserveAmount,
@@ -43,8 +42,10 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
         uint256[] memory _amountsTeam,
         uint256[] memory _amountsCommunity,
         uint256 _undistributedTeamTokens,
-        uint256 _undistributedCommunityTokens
-    ) public initializer returns (bool) {
+        uint256 _undistributedCommunityTokens,
+        address _owner
+    ) public returns (bool) {
+        require(deployment == 0, "VESTING-ALREADY-INITIALIZED");
         require(
             _beneficiaries.length ==
                 _amountsFounders
@@ -54,6 +55,7 @@ contract Vesting is Initializable, OpenZeppelinUpgradesOwnable {
                     .add(1),
             "VESTING-ARRAY-LENGTH-MISMATCH"
         );
+        _transferOwnership(_owner);
         xgtToken = IXGTToken(_tokenContract);
         deployment = now;
 

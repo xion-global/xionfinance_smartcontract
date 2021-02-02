@@ -84,7 +84,7 @@ contract TestERC20 is
         index = index + _vestedAddressesCommunity.length;
 
         require(
-            vesting.initialize(
+            vesting.initializeVesting(
                 address(this),
                 beneficiaries,
                 XION_RESERVE,
@@ -92,7 +92,8 @@ contract TestERC20 is
                 _vestedAmountsTeam,
                 _vestedAmountsCommunity,
                 undistributedTeam,
-                undistributedCommunity
+                undistributedCommunity,
+                msg.sender
             ),
             "XGT-FAILED-TO-INIT-VESTING-CONTRACT"
         );

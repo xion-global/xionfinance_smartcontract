@@ -16,8 +16,11 @@ contract EIP712Base {
         );
 
     bytes32 internal domainSeperator;
+    bool internal initializedAlready;
 
-    constructor(string memory name, string memory version) public {
+    function initBase(string memory name, string memory version) public {
+        require(!initializedAlready, "BASE-ALREADY-INITIALIZED");
+        initializedAlready = true;
         domainSeperator = keccak256(
             abi.encode(
                 EIP712_DOMAIN_TYPEHASH,

@@ -1,7 +1,7 @@
 pragma solidity ^0.5.16;
 
 interface IVesting {
-    function initialize(
+    function initializeVesting(
         address _tokenContract,
         address[] calldata _beneficiaries,
         uint256 _reserveAmount,
@@ -9,6 +9,7 @@ interface IVesting {
         uint256[] calldata _amountsTeam,
         uint256[] calldata _amountsCommunity,
         uint256 _undistributedCommunityTokens,
-        uint256 _undistributedTeamTokens
+        uint256 _undistributedTeamTokens,
+        address _owner
     ) external returns (bool);
 }
