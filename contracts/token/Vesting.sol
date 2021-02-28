@@ -234,6 +234,7 @@ contract Vesting is Initializable, Ownable {
     }
 
     function updateAddress(address _old, address _new) external {
+        require(msg.sender == _old, "VESTING-NOT-ALLOWED");
         require(
             beneficiary[_old].totalTokens > 0,
             "VESTING-BENEFICIARY-DOESNT-EXIST"

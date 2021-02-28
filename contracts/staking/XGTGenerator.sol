@@ -104,6 +104,10 @@ contract XGTGenerator is Initializable, Ownable {
         poolRouterContract = _newPoolRouter;
     }
 
+    function updateXGTPair(address _newXGTPair) external onlyOwner {
+        xgtpair = IUniswapV2Pair(_newXGTPair);
+    }
+
     function tokensStaked(uint256 _amount, address _user)
         external
         onlyIfNotPaused
@@ -119,11 +123,10 @@ contract XGTGenerator is Initializable, Ownable {
 
     function tokensPooled(uint256 _amount, address _user)
         external
+        view
         onlyIfNotPaused
     {
-        require(msg.sender == poolRouterContract, "XGTGEN-NOT-POOL-ROUTER");
-        userPoolTokens[_user] = userPoolTokens[_user].add(_amount);
-        _startGeneration(_amount, _user, xgtGenerationRatePool);
+        require(true, "FUNCTION-UNUSED");
     }
 
     function _startGeneration(
@@ -131,33 +134,35 @@ contract XGTGenerator is Initializable, Ownable {
         address _user,
         uint256 _rate
     ) internal {
-        claimXGT(_user);
+        if (_amount > 0) {
+            claimXGT(_user);
 
-        totalUserDeposit[_user] = totalUserDeposit[_user].add(_amount);
-        totalDeposits = totalDeposits.add(_amount);
+            totalUserDeposit[_user] = totalUserDeposit[_user].add(_amount);
+            totalDeposits = totalDeposits.add(_amount);
 
-        if (specificUserDeposits[_user].deposits.length != 0) {
-            uint256 lastItem =
-                specificUserDeposits[_user].deposits.length.sub(1);
+            if (specificUserDeposits[_user].deposits.length != 0) {
+                uint256 lastItem =
+                    specificUserDeposits[_user].deposits.length.sub(1);
 
-            if (
-                specificUserDeposits[_user].deposits[lastItem].generationRate ==
-                _rate
-            ) {
-                specificUserDeposits[_user].deposits[lastItem]
-                    .amount = specificUserDeposits[_user].deposits[lastItem]
-                    .amount
-                    .add(_amount);
-                return;
+                if (
+                    specificUserDeposits[_user].deposits[lastItem]
+                        .generationRate == _rate
+                ) {
+                    specificUserDeposits[_user].deposits[lastItem]
+                        .amount = specificUserDeposits[_user].deposits[lastItem]
+                        .amount
+                        .add(_amount);
+                    return;
+                }
             }
-        }
-        // In case the user doesn't have any deposits yet this will not be
-        // set by claimXGT()
-        specificUserDeposits[_user].lastTimeClaimed = now;
+            // In case the user doesn't have any deposits yet this will not be
+            // set by claimXGT()
+            specificUserDeposits[_user].lastTimeClaimed = now;
 
-        specificUserDeposits[_user].deposits.push(
-            DepositPerRate(_amount, _rate)
-        );
+            specificUserDeposits[_user].deposits.push(
+                DepositPerRate(_amount, _rate)
+            );
+        }
     }
 
     function tokensUnstaked(uint256 _amount, address _user)
@@ -176,76 +181,102 @@ contract XGTGenerator is Initializable, Ownable {
 
     function tokensUnpooled(uint256 _amount, address _user)
         external
+        view
         onlyIfNotPaused
     {
-        require(msg.sender == poolRouterContract, "XGTGEN-NOT-POOL-ROUTER");
-        userPoolTokens[_user] = userPoolTokens[_user].sub(_amount);
-        _stopGeneration(_amount, _user);
+        require(true, "FUNCTION-UNUSED");
     }
 
     function _stopGeneration(uint256 _amount, address _user) internal {
-        // Claim XGT so nothing get's lost
-        claimXGT(_user);
+        if (_amount > 0) {
+            // Claim XGT so nothing get's lost
+            claimXGT(_user);
 
-        totalUserDeposit[_user] = totalUserDeposit[_user].sub(_amount);
-        totalDeposits = totalDeposits.sub(_amount);
+            totalUserDeposit[_user] = totalUserDeposit[_user].sub(_amount);
+            totalDeposits = totalDeposits.sub(_amount);
 
-        uint256 remainingAmount = _amount;
-        for (
-            uint256 i = specificUserDeposits[_user].deposits.length - 1;
-            i >= 0;
-            i--
-        ) {
-            // If the amount in this entry is enough, subtract as much as needed and set remainder to zero
-            if (
-                specificUserDeposits[_user].deposits[i].amount >=
-                remainingAmount
+            uint256 remainingAmount = _amount;
+            for (
+                uint256 i = specificUserDeposits[_user].deposits.length - 1;
+                i >= 0;
+                i--
             ) {
-                specificUserDeposits[_user].deposits[i]
-                    .amount = specificUserDeposits[_user].deposits[i]
-                    .amount
-                    .sub(remainingAmount);
-                remainingAmount = 0;
-                // If the amount is not enough, take the amount and continue
-            } else {
-                specificUserDeposits[_user].deposits[i].amount = 0;
-                remainingAmount = remainingAmount.sub(
-                    specificUserDeposits[_user].deposits[i].amount
-                );
+                // If the amount in this entry is enough, subtract as much as needed and set remainder to zero
+                if (
+                    specificUserDeposits[_user].deposits[i].amount >=
+                    remainingAmount
+                ) {
+                    specificUserDeposits[_user].deposits[i]
+                        .amount = specificUserDeposits[_user].deposits[i]
+                        .amount
+                        .sub(remainingAmount);
+                    remainingAmount = 0;
+                    // If the amount is not enough, take the amount and continue
+                } else {
+                    specificUserDeposits[_user].deposits[i].amount = 0;
+                    remainingAmount = remainingAmount.sub(
+                        specificUserDeposits[_user].deposits[i].amount
+                    );
+                }
+
+                // If this entry doesn't have anything left, delete the array entry
+                if (specificUserDeposits[_user].deposits[i].amount == 0) {
+                    delete specificUserDeposits[_user].deposits[i];
+                    specificUserDeposits[_user]
+                        .deposits
+                        .length = specificUserDeposits[_user]
+                        .deposits
+                        .length
+                        .sub(1);
+                }
+
+                // If we are finished, break the loop
+                if (remainingAmount == 0) {
+                    break;
+                }
             }
 
-            // If this entry doesn't have anything left, delete the array entry
-            if (specificUserDeposits[_user].deposits[i].amount == 0) {
-                delete specificUserDeposits[_user].deposits[i];
-                specificUserDeposits[_user]
-                    .deposits
-                    .length = specificUserDeposits[_user].deposits.length.sub(
-                    1
-                );
-            }
-
-            // If we are finished, break the loop
-            if (remainingAmount == 0) {
-                break;
-            }
+            // Just in case, remaining amount should be zero now
+            require(
+                remainingAmount == 0,
+                "XGTGEN-WITHDRAW-NOT-EXECUTED-CORRECTLY"
+            );
         }
-
-        // Just in case, remaining amount should be zero now
-        require(remainingAmount == 0, "XGTGEN-WITHDRAW-NOT-EXECUTED-CORRECTLY");
     }
 
     // In case there was a malfunction in contract communication, this
     // function does a correction based on the users current pool tokens
     function manualCorrectPool(address _user) external {
         uint256 currentTokens = xgtpair.balanceOf(_user);
+
         if (userPoolTokens[_user] != currentTokens) {
-            if (userPoolTokens[_user] > currentTokens) {
-                uint256 diff = userPoolTokens[_user].sub(currentTokens);
-                _stopGeneration(diff, _user);
+            // Fixing wrong values due to an earlier bug
+            // setting pool tokens to the correct value
+            // derived from the total one to reset the calc
+            if (
+                totalUserDeposit[_user] !=
+                userPoolTokens[_user].add(userDAITokens[_user])
+            ) {
+                userPoolTokens[_user] = totalUserDeposit[_user].sub(
+                    userDAITokens[_user]
+                );
+            }
+
+            if (userPoolTokens[_user] > currentTokens || currentTokens == 0) {
+                _stopGeneration(
+                    (totalUserDeposit[_user].sub(userDAITokens[_user])).sub(
+                        currentTokens
+                    ),
+                    _user
+                );
             } else {
-                uint256 diff = currentTokens.sub(userPoolTokens[_user]);
+                uint256 diff =
+                    currentTokens.sub(
+                        totalUserDeposit[_user].sub(userDAITokens[_user])
+                    );
                 _startGeneration(diff, _user, xgtGenerationRatePool);
             }
+            userPoolTokens[_user] = currentTokens;
         }
     }
 
@@ -258,6 +289,7 @@ contract XGTGenerator is Initializable, Ownable {
             "XGTGEN-NOT-MAINNET-CONTRACT"
         );
         if (userDAITokens[_user] != _daiBalance) {
+            userDAITokens[_user] = _daiBalance;
             if (userDAITokens[_user] > _daiBalance) {
                 uint256 diff = userDAITokens[_user].sub(_daiBalance);
                 _stopGeneration(diff, _user);
@@ -295,6 +327,14 @@ contract XGTGenerator is Initializable, Ownable {
         }
 
         return unclaimedXGT;
+    }
+
+    function getUserPoolTokens(address _user) public view returns (uint256) {
+        return userPoolTokens[_user];
+    }
+
+    function getUserStakeTokens(address _user) public view returns (uint256) {
+        return userDAITokens[_user];
     }
 
     modifier onlyIfNotPaused() {

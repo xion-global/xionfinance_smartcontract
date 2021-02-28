@@ -30,7 +30,7 @@ module.exports = {
       skipDryRun: true,
     },
     xdai: {
-      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://rpc.xdaichain.com/"),
+      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://xdai-archive.blockscout.com"),
       gasPrice: 1 * 1000000000,
       network_id: 100,
     },
@@ -41,7 +41,7 @@ module.exports = {
     },
     mainnet: {
       provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY),
-      gasPrice: 75 * 1000000000,
+      gasPrice: 175 * 1000000000,
       network_id: 1,
       skipDryRun: true,
     },
