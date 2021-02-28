@@ -4,9 +4,8 @@ The Xion Finance smart contracts running on the xDai chain and Ethereum Mainnet,
 
 ## Smart Contracts
 
-### Xion Global Token - XGT
-
-The Xion Global Token (XGT) is a standard ERC20 token based on the OpenZeppelin contracts. We added the following features on top of it:
+### Xion Global Token <img src="https://xion.finance/images/xgt_icon.png" width="16" height="16"> XGT
+ The Xion Global Token (XGT) is a standard ERC20 token based on the OpenZeppelin contracts. We added the following features on top of it:
 
 - Protection against sending tokens to the token address itself, e.g.:
   - `require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");`
