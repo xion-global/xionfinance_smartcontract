@@ -4,7 +4,7 @@ import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath
 import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTToken.sol";
-import "../liquiditypool/interfaces/IUniswapV2Pair.sol";
+import "../interfaces/IUniswapV2Pair.sol";
 
 contract XGTGenerator is Initializable, Ownable {
     using SafeMath for uint256;
@@ -100,10 +100,6 @@ contract XGTGenerator is Initializable, Ownable {
         xgtGenerationFunds = xgtGenerationFunds.add(_amount);
     }
 
-    function updatePoolRouter(address _newPoolRouter) external onlyOwner {
-        poolRouterContract = _newPoolRouter;
-    }
-
     function updateXGTPair(address _newXGTPair) external onlyOwner {
         xgtpair = IUniswapV2Pair(_newXGTPair);
     }
@@ -119,14 +115,6 @@ contract XGTGenerator is Initializable, Ownable {
         );
         userDAITokens[_user] = userDAITokens[_user].add(_amount);
         _startGeneration(_amount, _user, xgtGenerationRateStake);
-    }
-
-    function tokensPooled(uint256 _amount, address _user)
-        external
-        view
-        onlyIfNotPaused
-    {
-        require(true, "FUNCTION-UNUSED");
     }
 
     function _startGeneration(
@@ -177,14 +165,6 @@ contract XGTGenerator is Initializable, Ownable {
 
         userDAITokens[_user] = userDAITokens[_user].sub(_amount);
         _stopGeneration(_amount, _user);
-    }
-
-    function tokensUnpooled(uint256 _amount, address _user)
-        external
-        view
-        onlyIfNotPaused
-    {
-        require(true, "FUNCTION-UNUSED");
     }
 
     function _stopGeneration(uint256 _amount, address _user) internal {
@@ -246,7 +226,7 @@ contract XGTGenerator is Initializable, Ownable {
 
     // In case there was a malfunction in contract communication, this
     // function does a correction based on the users current pool tokens
-    function manualCorrectPool(address _user) external {
+    function updatePoolBalanceOfUser(address _user) external {
         uint256 currentTokens = xgtpair.balanceOf(_user);
 
         if (userPoolTokens[_user] != currentTokens) {
