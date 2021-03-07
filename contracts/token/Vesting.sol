@@ -233,8 +233,7 @@ contract Vesting is Initializable, Ownable {
         }
     }
 
-    function updateAddress(address _old, address _new) external {
-        require(msg.sender == _old, "VESTING-NOT-ALLOWED");
+    function updateAddress(address _old, address _new) external onlyOwner {
         require(
             beneficiary[_old].totalTokens > 0,
             "VESTING-BENEFICIARY-DOESNT-EXIST"
@@ -255,6 +254,45 @@ contract Vesting is Initializable, Ownable {
         }
     }
 
+    function increaseVestedAmount(
+        address _address,
+        uint256 _amount,
+        bool _team,
+        bool _community
+    ) external onlyOwner {
+        require(
+            _amount > beneficiary[_address].totalTokens,
+            "VESTING-AMOUNT-NOT-CHANGED"
+        );
+
+        uint256 diff = _amount.sub(beneficiary[_address].totalTokens);
+
+        if (_team) {
+            require(diff <= freeTeamTokens(), "VESTING-NOT-ENOUGH-TOKENS-FREE");
+            distributedTeamTokens = distributedTeamTokens.add(diff);
+        } else if (_community) {
+            require(
+                diff <= freeCommunityTokens(),
+                "VESTING-NOT-ENOUGH-TOKENS-FREE"
+            );
+            distributedCommunityTokens = distributedCommunityTokens.add(diff);
+        }
+
+        beneficiary[_address].totalTokens = _amount;
+        uint256 amountNow =
+            diff.mul(beneficiary[_address].intervalNumber).div(totalIntervals);
+        beneficiary[_address].claimedTokens = beneficiary[_address]
+            .claimedTokens
+            .add(amountNow);
+        beneficiary[_address].tokensLeft = beneficiary[_address]
+            .totalTokens
+            .sub(beneficiary[_address].claimedTokens);
+        require(
+            xgtToken.transfer(_address, amountNow),
+            "VESTING-TRANSFER-FAILED"
+        );
+    }
+
     function getUnclaimedTokens(address _address)
         public
         view
@@ -263,7 +301,10 @@ contract Vesting is Initializable, Ownable {
         uint256 currentInterval =
             ((now.sub(deployment)).div(trancheInterval)).add(1);
 
-        if (currentInterval <= beneficiary[_address].intervalNumber) {
+        if (
+            currentInterval <= beneficiary[_address].intervalNumber ||
+            beneficiary[_address].tokensLeft == 0
+        ) {
             return 0;
         }
 
@@ -277,6 +318,11 @@ contract Vesting is Initializable, Ownable {
                 beneficiary[_address].totalTokens.div(totalIntervals);
             claimableAmount = amountPerInterval.mul(intervalDiff);
         }
+
+        if (claimableAmount > beneficiary[_address].tokensLeft) {
+            claimableAmount = beneficiary[_address].tokensLeft;
+        }
+
         return claimableAmount;
     }
 
@@ -293,12 +339,13 @@ contract Vesting is Initializable, Ownable {
     }
 
     function getTimeTilNextIteration() external view returns (uint256) {
-        uint256 timeSinceLastInterval =
-            (now.sub(deployment)) % (trancheInterval.div(totalIntervals));
-        if (timeSinceLastInterval >= trancheInterval) {
-            return 0;
+        uint256 timeDiff = now.sub(deployment);
+        uint256 nextInterval =
+            (undistributedTokenInterval.add(1)).mul(trancheInterval);
+        if (timeDiff < nextInterval) {
+            return nextInterval.sub(timeDiff);
         }
-        return trancheInterval.sub(timeSinceLastInterval);
+        return 0;
     }
 
     function freeTeamTokens() public view returns (uint256) {
@@ -307,5 +354,41 @@ contract Vesting is Initializable, Ownable {
 
     function freeCommunityTokens() public view returns (uint256) {
         return totalUnlockedCommunityTokens.sub(distributedCommunityTokens);
+    }
+
+    function getBeneficiaryByIndex(uint256 _index)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            beneficiary[beneficiaries[_index]].totalTokens,
+            beneficiary[beneficiaries[_index]].tokensLeft,
+            beneficiary[beneficiaries[_index]].claimedTokens,
+            beneficiary[beneficiaries[_index]].intervalNumber
+        );
+    }
+
+    function getBeneficiaryByAddress(address _address)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            beneficiary[_address].totalTokens,
+            beneficiary[_address].tokensLeft,
+            beneficiary[_address].claimedTokens,
+            beneficiary[_address].intervalNumber
+        );
     }
 }
