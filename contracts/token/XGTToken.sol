@@ -27,6 +27,9 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
     uint256 public constant COMMUNITY_AND_AIRDROPS = 300000000 * 10**18; // 0.3 billion
     uint256 public constant TEAM_AND_ADVISORS = 150000000 * 10**18; // 0.15 billion
 
+    mapping(uint256 => bool) public incomingTransferExecuted;
+    uint256 public outgoingTransferNonce;
+
     function initializeToken(
         address _subscriptionContract,
         address _vestingContract,
@@ -109,32 +112,18 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
         bridge = IBridgeContract(_address);
     }
 
-    function addMinter(address _address) public onlyOwner {
-        _addMinter(_address);
-    }
-
-    function removeMinter(address _address) public onlyOwner {
-        _removeMinter(_address);
-    }
-
-    function setSubscriptionContract(address _address) external onlyOwner {
-        subscriptionContract = _address;
-    }
-
-    function usedXGT(address _user, uint256 _amount) external returns (bool) {
-        require(
-            msg.sender == subscriptionContract,
-            "XGT-NOT-SUBSCRIPTION-CONTRACT"
-        );
-        _burn(_user, _amount);
-    }
-
-    function transferredToXDai(address _user, uint256 _amount) external {
+    function transferredToXDai(
+        address _user,
+        uint256 _amount,
+        uint256 _nonce
+    ) external {
         require(msg.sender == address(bridge), "XGT-NOT-BRIDGE");
         require(
             bridge.messageSender() == mainnetContract,
             "XGT-NOT-XDAI-CONTRACT"
         );
+        require(!incomingTransferExecuted[_nonce], "XGT-ALREADY-EXECUTED");
+        incomingTransferExecuted[_nonce] = true;
         _transfer(address(this), _user, _amount);
     }
 
@@ -143,7 +132,12 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
         bytes4 _methodSelector =
             IXGTTokenMainnet(address(0)).transferredToMainnet.selector;
         bytes memory data =
-            abi.encodeWithSelector(_methodSelector, msg.sender, _amount);
+            abi.encodeWithSelector(
+                _methodSelector,
+                msg.sender,
+                _amount,
+                outgoingTransferNonce++
+            );
         bridge.requireToPassMessage(mainnetContract, data, 500000);
     }
 

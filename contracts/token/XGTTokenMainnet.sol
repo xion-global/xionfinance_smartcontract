@@ -20,6 +20,9 @@ contract XGTTokenMainnet is
     address public xDaiContract;
     IBridgeContract public bridge;
 
+    mapping(uint256 => bool) public incomingTransferExecuted;
+    uint256 public outgoingTransferNonce;
+
     function initializeToken(address _xDaiContract, address _bridge) public {
         require(xDaiContract == address(0), "XGT-ALREADY-INITIALIZED");
         _transferOwnership(msg.sender);
@@ -31,12 +34,18 @@ contract XGTTokenMainnet is
         bridge = IBridgeContract(_address);
     }
 
-    function transferredToMainnet(address _user, uint256 _amount) external {
+    function transferredToMainnet(
+        address _user,
+        uint256 _amount,
+        uint256 _nonce
+    ) external {
         require(msg.sender == address(bridge), "XGT-NOT-BRIDGE");
         require(
             bridge.messageSender() == xDaiContract,
             "XGT-NOT-XDAI-CONTRACT"
         );
+        require(!incomingTransferExecuted[_nonce], "XGT-ALREADY-EXECUTED");
+        incomingTransferExecuted[_nonce] = true;
         _mint(_user, _amount);
     }
 
@@ -45,7 +54,12 @@ contract XGTTokenMainnet is
         bytes4 _methodSelector =
             IXGTToken(address(0)).transferredToXDai.selector;
         bytes memory data =
-            abi.encodeWithSelector(_methodSelector, msg.sender, _amount);
+            abi.encodeWithSelector(
+                _methodSelector,
+                msg.sender,
+                _amount,
+                outgoingTransferNonce++
+            );
         bridge.requireToPassMessage(xDaiContract, data, 300000);
     }
 

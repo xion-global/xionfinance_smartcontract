@@ -1,7 +1,11 @@
 pragma solidity ^0.5.16;
 
 interface IXGTToken {
-    function transferredToXDai(address _user, uint256 _amount) external;
+    function transferredToXDai(
+        address _user,
+        uint256 _amount,
+        uint256 _nonce
+    ) external;
 
     function mint(address account, uint256 amount) external returns (bool);
 

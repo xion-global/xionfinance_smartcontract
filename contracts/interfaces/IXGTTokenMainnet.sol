@@ -1,7 +1,11 @@
 pragma solidity ^0.5.16;
 
 interface IXGTTokenMainnet {
-    function transferredToMainnet(address _user, uint256 _amount) external;
+    function transferredToMainnet(
+        address _user,
+        uint256 _amount,
+        uint256 _nonce
+    ) external;
 
     /**
      * @dev Returns the amount of tokens in existence.
