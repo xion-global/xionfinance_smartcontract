@@ -29,6 +29,8 @@ contract XGTGenerator is Initializable, Ownable {
     mapping(address => uint256) internal userDAITokens;
     uint256 public totalDeposits;
 
+    mapping(address => bool) public authorizedAddress;
+
     struct UserDeposits {
         uint256 lastTimeClaimed;
         DepositPerRate[] deposits;
@@ -67,6 +69,13 @@ contract XGTGenerator is Initializable, Ownable {
         );
     }
 
+    function toggleAuthroizedAddress(address _address, bool _authorized)
+        external
+        onlyOwner
+    {
+        authorizedAddress[_address] = _authorized;
+    }
+
     function togglePauseContract(bool _pause) external onlyOwner {
         paused = _pause;
     }
@@ -92,7 +101,7 @@ contract XGTGenerator is Initializable, Ownable {
         xgtGenerationRatePool = _newxgtGenerationRatePool;
     }
 
-    function addGenerationFunds(uint256 _amount) external {
+    function addGenerationFunds(uint256 _amount) external onlyOwner {
         require(
             xgt.transferFrom(msg.sender, address(this), _amount),
             "XGTGEN-FAILED-TRANSFER"
@@ -224,12 +233,13 @@ contract XGTGenerator is Initializable, Ownable {
         }
     }
 
-    // In case there was a malfunction in contract communication, this
-    // function does a correction based on the users current pool tokens
-    function updatePoolBalanceOfUser(address _user) external {
-        uint256 currentTokens = xgtpair.balanceOf(_user);
+    // Provides the generator contract with the amount of Normalized-LP-Tokens
+    // 1 Normalized LP Token = $1 of value in the LP
+    function updatePoolBalanceOfUser(address _user, uint256 _nlp) external {
+        require(authorizedAddress[msg.sender], "XGTGEN-NOT-AUTHORIZED");
 
-        if (userPoolTokens[_user] != currentTokens) {
+        // If the value has changed since last time
+        if (userPoolTokens[_user] != _nlp) {
             // Fixing wrong values due to an earlier bug
             // setting pool tokens to the correct value
             // derived from the total one to reset the calc
@@ -242,21 +252,21 @@ contract XGTGenerator is Initializable, Ownable {
                 );
             }
 
-            if (userPoolTokens[_user] > currentTokens || currentTokens == 0) {
+            // If new amount is less than the current one
+            if (userPoolTokens[_user] > _nlp || _nlp == 0) {
                 _stopGeneration(
                     (totalUserDeposit[_user].sub(userDAITokens[_user])).sub(
-                        currentTokens
+                        _nlp
                     ),
                     _user
                 );
             } else {
+                // If the new amount is bigger than the current one
                 uint256 diff =
-                    currentTokens.sub(
-                        totalUserDeposit[_user].sub(userDAITokens[_user])
-                    );
+                    _nlp.sub(totalUserDeposit[_user].sub(userDAITokens[_user]));
                 _startGeneration(diff, _user, xgtGenerationRatePool);
             }
-            userPoolTokens[_user] = currentTokens;
+            userPoolTokens[_user] = _nlp;
         }
     }
 
