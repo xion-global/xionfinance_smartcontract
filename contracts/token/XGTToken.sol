@@ -112,6 +112,10 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
         bridge = IBridgeContract(_address);
     }
 
+    function burn(uint256 _amount) external {
+        _burn(msg.sender, _amount);
+    }
+
     function transferredToXDai(
         address _user,
         uint256 _amount,
