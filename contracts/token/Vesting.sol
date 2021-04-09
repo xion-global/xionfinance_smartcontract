@@ -19,8 +19,8 @@ contract Vesting is Initializable, Ownable {
     address[] internal beneficiaries;
 
     uint256 public deployment; // Time of deployment of this contract
-    uint256 public constant trancheInterval = (365 * 24 * 60 * 60) / 12; // 1 Month in Seconds
-    uint256 public constant totalIntervals = 24; // Spread over 24 months
+    uint256 public constant TRANCHE_INTERVAL = (365 * 24 * 60 * 60) / 12; // 1 Month in Seconds
+    uint256 public constant TOTAL_INTERVALS = 24; // Spread over 24 months
 
     uint256 public totalVestedTokens;
 
@@ -155,12 +155,16 @@ contract Vesting is Initializable, Ownable {
 
     function claim(address _beneficiary) public {
         require(
+            _beneficiary == msg.sender || msg.sender == owner(),
+            "VESTING-NOT-AUTHORIZED"
+        );
+        require(
             beneficiary[_beneficiary].totalTokens > 0,
             "VESTING-BENEFICIARY-DOESNT-EXIST"
         );
 
         uint256 currentInterval =
-            ((now.sub(deployment)).div(trancheInterval)).add(1);
+            ((now.sub(deployment)).div(TRANCHE_INTERVAL)).add(1);
 
         if (currentInterval <= beneficiary[_beneficiary].intervalNumber) {
             return;
@@ -187,7 +191,7 @@ contract Vesting is Initializable, Ownable {
         );
     }
 
-    function claimAll() public {
+    function claimAll() public onlyOwner {
         for (uint256 i = 0; i < beneficiaries.length; i++) {
             claim(beneficiaries[i]);
         }
@@ -196,7 +200,7 @@ contract Vesting is Initializable, Ownable {
 
     function unlockTokens() public {
         uint256 currentInterval =
-            ((now.sub(deployment)).div(trancheInterval)).add(1);
+            ((now.sub(deployment)).div(TRANCHE_INTERVAL)).add(1);
 
         if (currentInterval <= undistributedTokenInterval) {
             return;
@@ -204,7 +208,7 @@ contract Vesting is Initializable, Ownable {
 
         uint256 unlockedAmountTeam = 0;
         uint256 unlockedAmountCommunity = 0;
-        if (currentInterval >= totalIntervals) {
+        if (currentInterval >= TOTAL_INTERVALS) {
             unlockedAmountTeam = totalUndistributedTeamTokens.sub(
                 totalUnlockedTeamTokens
             );
@@ -213,18 +217,18 @@ contract Vesting is Initializable, Ownable {
             );
             totalUnlockedTeamTokens = totalUndistributedTeamTokens;
             totalUnlockedCommunityTokens = totalUndistributedCommunityTokens;
-            undistributedTokenInterval = totalIntervals;
+            undistributedTokenInterval = TOTAL_INTERVALS;
         } else {
             uint256 intervalDiff =
                 currentInterval.sub(undistributedTokenInterval);
             undistributedTokenInterval = currentInterval;
             uint256 amountTeam =
-                (totalUndistributedTeamTokens.div(totalIntervals)).mul(
-                    intervalDiff
+                (totalUndistributedTeamTokens.mul(intervalDiff)).div(
+                    TOTAL_INTERVALS
                 );
             uint256 amountCommunity =
-                (totalUndistributedCommunityTokens.div(totalIntervals)).mul(
-                    intervalDiff
+                (totalUndistributedCommunityTokens.mul(intervalDiff)).div(
+                    TOTAL_INTERVALS
                 );
             totalUnlockedCommunityTokens = totalUnlockedCommunityTokens.add(
                 amountCommunity
@@ -237,6 +241,10 @@ contract Vesting is Initializable, Ownable {
         require(
             beneficiary[_old].totalTokens > 0,
             "VESTING-BENEFICIARY-DOESNT-EXIST"
+        );
+        require(
+            beneficiary[_new].totalTokens == 0,
+            "VESTING-BENEFICIARY-ALREADY-EXISTS"
         );
         beneficiary[_new] = Beneficiary(
             beneficiary[_old].totalTokens,
@@ -264,6 +272,7 @@ contract Vesting is Initializable, Ownable {
             _amount > beneficiary[_address].totalTokens,
             "VESTING-AMOUNT-NOT-CHANGED"
         );
+        require(_team || _community, "VESTING-INCORRECT-INPUT");
 
         uint256 diff = _amount.sub(beneficiary[_address].totalTokens);
 
@@ -280,7 +289,7 @@ contract Vesting is Initializable, Ownable {
 
         beneficiary[_address].totalTokens = _amount;
         uint256 amountNow =
-            diff.mul(beneficiary[_address].intervalNumber).div(totalIntervals);
+            diff.mul(beneficiary[_address].intervalNumber).div(TOTAL_INTERVALS);
         beneficiary[_address].claimedTokens = beneficiary[_address]
             .claimedTokens
             .add(amountNow);
@@ -299,7 +308,7 @@ contract Vesting is Initializable, Ownable {
         returns (uint256)
     {
         uint256 currentInterval =
-            ((now.sub(deployment)).div(trancheInterval)).add(1);
+            ((now.sub(deployment)).div(TRANCHE_INTERVAL)).add(1);
 
         if (
             currentInterval <= beneficiary[_address].intervalNumber ||
@@ -309,13 +318,13 @@ contract Vesting is Initializable, Ownable {
         }
 
         uint256 claimableAmount = 0;
-        if (currentInterval >= totalIntervals) {
+        if (currentInterval >= TOTAL_INTERVALS) {
             claimableAmount = beneficiary[_address].tokensLeft;
         } else {
             uint256 intervalDiff =
                 currentInterval.sub(beneficiary[_address].intervalNumber);
             uint256 amountPerInterval =
-                beneficiary[_address].totalTokens.div(totalIntervals);
+                beneficiary[_address].totalTokens.div(TOTAL_INTERVALS);
             claimableAmount = amountPerInterval.mul(intervalDiff);
         }
 
@@ -340,8 +349,7 @@ contract Vesting is Initializable, Ownable {
 
     function getTimeTilNextIteration() external view returns (uint256) {
         uint256 timeDiff = now.sub(deployment);
-        uint256 nextInterval =
-            (undistributedTokenInterval.add(1)).mul(trancheInterval);
+        uint256 nextInterval = undistributedTokenInterval.mul(TRANCHE_INTERVAL);
         if (timeDiff < nextInterval) {
             return nextInterval.sub(timeDiff);
         }
