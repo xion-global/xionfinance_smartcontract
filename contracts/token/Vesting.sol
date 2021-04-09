@@ -365,7 +365,7 @@ contract Vesting is Initializable, Ownable {
     }
 
     function getBeneficiaryByIndex(uint256 _index)
-        public
+        external
         view
         returns (
             uint256,
@@ -383,7 +383,7 @@ contract Vesting is Initializable, Ownable {
     }
 
     function getBeneficiaryByAddress(address _address)
-        public
+        external
         view
         returns (
             uint256,
