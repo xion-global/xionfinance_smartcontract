@@ -116,6 +116,10 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
         _burn(msg.sender, _amount);
     }
 
+    function mint() external pure {
+        require(false, "XGT-NO-MINTING-POSSIBLE");
+    }
+
     function transferredToXDai(
         address _user,
         uint256 _amount,
