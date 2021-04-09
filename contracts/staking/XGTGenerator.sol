@@ -69,7 +69,7 @@ contract XGTGenerator is Initializable, Ownable {
         );
     }
 
-    function toggleAuthroizedAddress(address _address, bool _authorized)
+    function toggleAuthorizedAddress(address _address, bool _authorized)
         external
         onlyOwner
     {
@@ -240,18 +240,6 @@ contract XGTGenerator is Initializable, Ownable {
 
         // If the value has changed since last time
         if (userPoolTokens[_user] != _nlp) {
-            // Fixing wrong values due to an earlier bug
-            // setting pool tokens to the correct value
-            // derived from the total one to reset the calc
-            if (
-                totalUserDeposit[_user] !=
-                userPoolTokens[_user].add(userDAITokens[_user])
-            ) {
-                userPoolTokens[_user] = totalUserDeposit[_user].sub(
-                    userDAITokens[_user]
-                );
-            }
-
             // If new amount is less than the current one
             if (userPoolTokens[_user] > _nlp || _nlp == 0) {
                 _stopGeneration(
@@ -279,7 +267,6 @@ contract XGTGenerator is Initializable, Ownable {
             "XGTGEN-NOT-MAINNET-CONTRACT"
         );
         if (userDAITokens[_user] != _daiBalance) {
-            userDAITokens[_user] = _daiBalance;
             if (userDAITokens[_user] > _daiBalance) {
                 uint256 diff = userDAITokens[_user].sub(_daiBalance);
                 _stopGeneration(diff, _user);
@@ -287,18 +274,29 @@ contract XGTGenerator is Initializable, Ownable {
                 uint256 diff = _daiBalance.sub(userDAITokens[_user]);
                 _startGeneration(diff, _user, xgtGenerationRatePool);
             }
+            userDAITokens[_user] = _daiBalance;
         }
     }
 
     function claimXGT(address _user) public onlyIfNotPaused {
-        uint256 xgtToClaim = getUnclaimedXGT(_user);
-        if (xgtToClaim > 0 && xgtGenerationFunds >= xgtToClaim) {
-            require(xgt.transfer(_user, xgtToClaim), "XGTGEN-TRANSFER-FAILED");
-            specificUserDeposits[_user].lastTimeClaimed = now;
+        if (specificUserDeposits[_user].deposits.length != 0) {
+            uint256 xgtToClaim = getUnclaimedXGT(_user);
+            if (xgtToClaim > 0 && xgtGenerationFunds >= xgtToClaim) {
+                require(
+                    xgt.transfer(_user, xgtToClaim),
+                    "XGTGEN-TRANSFER-FAILED"
+                );
+                specificUserDeposits[_user].lastTimeClaimed = now;
+            }
         }
     }
 
     function getUnclaimedXGT(address _user) public view returns (uint256) {
+        require(
+            specificUserDeposits[_user].lastTimeClaimed > 0,
+            "XGTGEN-INVALID-CLAIM-TIME"
+        );
+
         uint256 diffTime = now.sub(specificUserDeposits[_user].lastTimeClaimed);
 
         uint256 unclaimedXGT = 0;
@@ -311,8 +309,8 @@ contract XGTGenerator is Initializable, Ownable {
                 specificUserDeposits[_user].deposits[i]
                     .amount
                     .mul(specificUserDeposits[_user].deposits[i].generationRate)
-                    .div(10**18)
                     .mul(diffTime)
+                    .div(10**18)
             );
         }
 
