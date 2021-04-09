@@ -202,10 +202,10 @@ contract XGTGenerator is Initializable, Ownable {
                     remainingAmount = 0;
                     // If the amount is not enough, take the amount and continue
                 } else {
-                    specificUserDeposits[_user].deposits[i].amount = 0;
                     remainingAmount = remainingAmount.sub(
                         specificUserDeposits[_user].deposits[i].amount
                     );
+                    specificUserDeposits[_user].deposits[i].amount = 0;
                 }
 
                 // If this entry doesn't have anything left, delete the array entry
