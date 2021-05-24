@@ -235,8 +235,16 @@ contract XGTGenerator is Initializable, Ownable {
 
     // Provides the generator contract with the amount of Normalized-LP-Tokens
     // 1 Normalized LP Token = $1 of value in the LP
-    function updatePoolBalanceOfUser(address _user, uint256 _nlp) external {
+    function updatePoolBalanceOfUser(
+        address _user,
+        uint256 _nlp,
+        bool _reset
+    ) external {
         require(authorizedAddress[msg.sender], "XGTGEN-NOT-AUTHORIZED");
+
+        if (_reset) {
+            resetPoolBalanceOfUser(_user);
+        }
 
         // If the value has changed since last time
         if (userPoolTokens[_user] != _nlp) {
@@ -255,6 +263,39 @@ contract XGTGenerator is Initializable, Ownable {
                 _startGeneration(diff, _user, xgtGenerationRatePool);
             }
             userPoolTokens[_user] = _nlp;
+        }
+    }
+
+    // Due to an earlier bug we had some leftover issues in our data, which we
+    // fix through calling this function to clean any wrong values before
+    // setting the correct one.
+    function resetPoolBalanceOfUser(address _user) internal {
+        if (specificUserDeposits[_user].deposits.length > 0) {
+            claimXGT(_user);
+
+            // Get all of the users tokens
+            uint256 totalTokens =
+                userPoolTokens[_user].add(userDAITokens[_user]);
+
+            // Remove them from the general counters
+            totalDeposits = totalDeposits.sub(totalTokens);
+            totalUserDeposit[_user] = 0;
+            userPoolTokens[_user] = 0;
+
+            // Clean array by setting the length to zero,
+            // essentially resetting it
+            specificUserDeposits[_user].deposits.length = 0;
+
+            // If user has dai tokens staked, restart generation for these
+            // Note: Pool token generation will restart anyways through the
+            // calling function
+            if (userDAITokens[_user] > 0) {
+                _startGeneration(
+                    userDAITokens[_user],
+                    _user,
+                    xgtGenerationRateStake
+                );
+            }
         }
     }
 

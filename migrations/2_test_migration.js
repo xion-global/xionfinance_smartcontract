@@ -5,27 +5,28 @@ const XGTGenerator = artifacts.require("XGTGenerator");
 const UniswapV2Router02 = artifacts.require("UniswapV2Router02");
 const WETH = artifacts.require("WETH");
 
-const UniswapV2FactoryJson = require('@uniswap/v2-core/build/UniswapV2Factory.json')
-const contract = require('@truffle/contract');
-const UniswapV2Factory = contract(UniswapV2FactoryJson);
+// const UniswapV2FactoryJson = require('@uniswap/v2-core/build/UniswapV2Factory.json')
+const UniswapV2Factory = artifacts.require('UniswapV2Factory')
+// const contract = require('@truffle/contract');
+// const UniswapV2Factory = contract(UniswapV2FactoryJson);
 
-UniswapV2Factory.setProvider(this.web3._provider);
+// UniswapV2Factory.setProvider(this.web3._provider);
 
-const bridgeXDaiSide = "0x75Df5AF045d91108662D8080fD1FEFAd6aA0bb59";
-const bridgeMainnetSide = "0x4C36d2919e407f0Cc2Ee3c993ccF8ac26d9CE64e";
-const cDAI = "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643";
-const comptroller = "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b";
-const comp = "0xc00e94cb662c3520282e6f5717214004a7f26888";
-const DAI = "0x6b175474e89094c44da98b954eedeac495271d0f";
+const bridgeXDaiSide = "0xFe446bEF1DbF7AFE24E81e05BC8B271C1BA9a560";
+const bridgeMainnetSide = "0xFe446bEF1DbF7AFE24E81e05BC8B271C1BA9a560";
+const cDAI = "0x4a92e71227d294f041bd82dd8f78591b75140d63";
+const comptroller = "0x5eae89dc1c671724a672ff0630122ee834098657";
+const comp = "0x61460874a7196d6a22d1ee4922473664b3e95270";
+const DAI = "0xb7a4f3e9097c08da09517b5ab877f7a917224ede";
 
-const XGTTokenAddress = "0xBbcCae8Aa4339c4e648aD97f150F1c7204398E3c";
-const XGTStakeAddress = "0xBbcCae8Aa4339c4e648aD97f150F1c7204398E3c";
-const XGTGeneratorAddress = "0x05DcC5724AF8d5Ba4325581B8B899cDd6930327c";
-const XGTPairAddress = "0x7238853E10221E7e5d017111633E4F94216BD4Cd";
+const XGTTokenAddress = "0xe211D9Fe8Fc94f917422F2714A41D52974fcf4a3";
+const XGTStakeAddress = "0x94cc1693E7325C73892ffb4DB350c0e32653EF2D";
+const XGTGeneratorAddress = "0x60DcC1435f275e708A8867dbb3EeDBa8E986AdA3";
+const XGTPairAddress = "0x7bD95A7D573D0f79BC765977Abd9fDD6783B920c";
 const RUN = 2;
 
 module.exports = async function (deployer, network, accounts) {
-  if (deployer.network_id == 100) {
+  if (deployer.network_id == 77) {
     if (RUN == 1) {
       // xDai
       await deployer.deploy(XGTToken);
@@ -39,7 +40,7 @@ module.exports = async function (deployer, network, accounts) {
         from: accounts[0]
       });
 
-      await XGTTokenInstance.initializeToken("0x36985f8AA15C02964d8450c930354C70f382bBC3", XGTGeneratorInstance.address, {
+      await XGTTokenInstance.initializeToken("0xdE8DcD65042db880006421dD3ECA5D94117642d1", XGTGeneratorInstance.address, {
         from: accounts[0]
       });
 
@@ -73,14 +74,14 @@ module.exports = async function (deployer, network, accounts) {
     }
   }
 
-  if (deployer.network_id == 1) {
+  if (deployer.network_id == 42) {
     if (RUN == 1) {
       // Mainnet
-      // await deployer.deploy(XGTTokenMainnet);
-      // let XGTTokenMainnetInstance = await XGTTokenMainnet.deployed({
-      //   from: accounts[0]
-      // });
-      // await XGTTokenMainnetInstance.initialize(XGTTokenAddress, bridgeMainnetSide);
+      await deployer.deploy(XGTTokenMainnet);
+      let XGTTokenMainnetInstance = await XGTTokenMainnet.deployed({
+        from: accounts[0]
+      });
+      await XGTTokenMainnetInstance.initialize(XGTTokenAddress, bridgeMainnetSide);
 
       // Mainnet
       await deployer.deploy(XGTStake);
