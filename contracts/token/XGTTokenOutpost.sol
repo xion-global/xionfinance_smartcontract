@@ -1,55 +1,51 @@
-pragma solidity ^0.5.16;
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity 0.7.6;
 
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Mintable.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Burnable.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTToken.sol";
 
-contract XGTTokenMainnet is
-    Initializable,
-    Ownable,
-    ERC20Detailed,
-    ERC20Mintable,
-    ERC20Burnable
-{
+contract XGTTokenMainnet is Ownable, ERC20Burnable {
     using SafeMath for uint256;
 
-    address public xDaiContract;
+    address public tokenBridgeContract;
     IBridgeContract public bridge;
 
     mapping(uint256 => bool) public incomingTransferExecuted;
     uint256 public outgoingTransferNonce;
 
-    function initializeToken(address _xDaiContract, address _bridge) public {
-        require(xDaiContract == address(0), "XGT-ALREADY-INITIALIZED");
-        _transferOwnership(msg.sender);
-        xDaiContract = _xDaiContract;
+    constructor(address _tokenBridgeContract, address _bridge) {
+        require(
+            _tokenBridgeContract != address(0),
+            "XGT-INVALID-TOKEN-BRIDGE-ADDRESS"
+        );
+        require(_bridge != address(0), "XGT-INVALID-BRIDGE-ADDRESS");
+        mainContract = _bridge;
         bridge = IBridgeContract(_bridge);
     }
 
-    function setBridge(address _address) external onlyOwner {
+    function changeBridge(address _address) external onlyOwner {
         bridge = IBridgeContract(_address);
     }
 
-    function transferredToMainnet(
+    function incomingTransfer(
         address _user,
         uint256 _amount,
         uint256 _nonce
     ) external {
         require(msg.sender == address(bridge), "XGT-NOT-BRIDGE");
         require(
-            bridge.messageSender() == xDaiContract,
-            "XGT-NOT-XDAI-CONTRACT"
+            bridge.messageSender() == mainContract,
+            "XGT-NOT-TOKEN-BRIDGE-CONTRACT"
         );
         require(!incomingTransferExecuted[_nonce], "XGT-ALREADY-EXECUTED");
         incomingTransferExecuted[_nonce] = true;
         _mint(_user, _amount);
     }
 
-    function transferToXDai(uint256 _amount) external {
+    function transferBackToXDai(uint256 _amount) external {
         _burn(msg.sender, _amount);
         bytes4 _methodSelector =
             IXGTToken(address(0)).transferredToXDai.selector;
@@ -64,7 +60,11 @@ contract XGTTokenMainnet is
     }
 
     // Safety override
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint256 amount)
+        public
+        override
+        returns (bool)
+    {
         require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
         return super.transfer(recipient, amount);
     }
@@ -74,7 +74,7 @@ contract XGTTokenMainnet is
         address sender,
         address recipient,
         uint256 amount
-    ) public returns (bool) {
+    ) public override returns (bool) {
         require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
         return super.transferFrom(sender, recipient, amount);
     }

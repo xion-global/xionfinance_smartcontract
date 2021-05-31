@@ -1,61 +1,51 @@
-pragma solidity ^0.5.16;
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity 0.7.6;
 
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Mintable.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/ownership/Ownable.sol";
-import "../interfaces/IBridgeContract.sol";
-import "../interfaces/IXGTTokenMainnet.sol";
-import "../interfaces/IVesting.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 
-contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
+// import "../interfaces/IBridgeContract.sol";
+// import "../interfaces/IXGTTokenMainnet.sol";
+
+contract XGTToken is ERC20Burnable {
     using SafeMath for uint256;
 
-    address public subscriptionContract;
-    address public mainnetContract;
-    IBridgeContract public bridge;
-    IVesting public vesting;
-
     // Total Token Supply
-    uint256 public constant MAX_SUPPLY = 3000000000 * 10**18; // 3 billion
+    uint256 public constant MAX_SUPPLY = 1000000000 * 10**18; // 1 billion
 
     // Specific supplies
-    uint256 public constant ISSUE_RESERVE = 1200000000 * 10**18; // 1.2 billion
-    uint256 public constant LIQUIDITY_POOL = 300000000 * 10**18; // 0.3 billion
-    uint256 public constant XION_RESERVE = 600000000 * 10**18; // 0.6 billion
-    uint256 public constant FOUNDERS_RESERVE = 450000000 * 10**18; // 0.45 billion
-    uint256 public constant COMMUNITY_AND_AIRDROPS = 300000000 * 10**18; // 0.3 billion
-    uint256 public constant TEAM_AND_ADVISORS = 150000000 * 10**18; // 0.15 billion
+    uint256 public constant ISSUE_RESERVE = 450000000 * 10**18; // 450 million
+    uint256 public constant XION_RESERVE = 200000000 * 10**18; // 200 million
+    uint256 public constant FOUNDERS_RESERVE = 150000000 * 10**18; // 150 million
+    uint256 public constant COMMUNITY_AND_AIRDROPS = 100000000 * 10**18; // 100 million
+    uint256 public constant TEAM_AND_ADVISORS = 50000000 * 10**18; // 50 million
+    uint256 public constant MARKET_MAKING = 50000000 * 10**18; // 50 million
 
-    mapping(uint256 => bool) public incomingTransferExecuted;
-    uint256 public outgoingTransferNonce;
-
-    function initializeToken(
-        address _subscriptionContract,
+    constructor(
         address _vestingContract,
         address[] memory _reserveAddresses,
         address[] memory _vestedAddressesFounders,
-        uint256[] memory _vestedAmountsFounders,
+        // uint256[] memory _vestedAmountsFounders,
         address[] memory _vestedAddressesTeam,
         uint256[] memory _vestedAmountsTeam,
         address[] memory _vestedAddressesCommunity,
         uint256[] memory _vestedAmountsCommunity
-    ) public {
-        require(subscriptionContract == address(0), "XGT-ALREADY-INITIALIZED");
-        _transferOwnership(msg.sender);
-        subscriptionContract = _subscriptionContract;
+    ) ERC20("Xion Global Token", "XGT") {
+        require(_vestingContract != address(0), "XGT-INVALID-VESTING-ADDRESS");
 
         // General token utility allocations
         _mint(_reserveAddresses[0], ISSUE_RESERVE);
-        _mint(_reserveAddresses[1], LIQUIDITY_POOL);
+        _mint(_reserveAddresses[1], MARKET_MAKING);
 
         // Specific allocations subject to vesting
         // of 24 months, where 1/24th becomes available each month
-        vesting = IVesting(_vestingContract);
-        _mint(address(vesting), XION_RESERVE);
-        _mint(address(vesting), FOUNDERS_RESERVE);
-        _mint(address(vesting), COMMUNITY_AND_AIRDROPS);
-        _mint(address(vesting), TEAM_AND_ADVISORS);
+        // vesting = IVesting(_vestingContract);
+        _mint(_vestingContract, XION_RESERVE);
+        _mint(_vestingContract, FOUNDERS_RESERVE);
+        _mint(_vestingContract, COMMUNITY_AND_AIRDROPS);
+        _mint(_vestingContract, TEAM_AND_ADVISORS);
+
+        require(totalSupply() == MAX_SUPPLY, "XGT-INVALID-SUPPLY");
 
         uint256 index = 4;
         address[] memory beneficiaries =
@@ -88,69 +78,28 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
         }
         index = index + _vestedAddressesCommunity.length;
 
-        require(
-            vesting.initializeVesting(
-                address(this),
-                beneficiaries,
-                XION_RESERVE,
-                _vestedAmountsFounders,
-                _vestedAmountsTeam,
-                _vestedAmountsCommunity,
-                undistributedTeam,
-                undistributedCommunity,
-                msg.sender
-            ),
-            "XGT-FAILED-TO-INIT-VESTING-CONTRACT"
-        );
-    }
-
-    function setMainnetContract(address _mainnetContract) external onlyOwner {
-        mainnetContract = _mainnetContract;
-    }
-
-    function setBridge(address _address) external onlyOwner {
-        bridge = IBridgeContract(_address);
-    }
-
-    function burn(uint256 _amount) external {
-        _burn(msg.sender, _amount);
-    }
-
-    function mint() external pure {
-        require(false, "XGT-NO-MINTING-POSSIBLE");
-    }
-
-    function transferredToXDai(
-        address _user,
-        uint256 _amount,
-        uint256 _nonce
-    ) external {
-        require(msg.sender == address(bridge), "XGT-NOT-BRIDGE");
-        require(
-            bridge.messageSender() == mainnetContract,
-            "XGT-NOT-XDAI-CONTRACT"
-        );
-        require(!incomingTransferExecuted[_nonce], "XGT-ALREADY-EXECUTED");
-        incomingTransferExecuted[_nonce] = true;
-        _transfer(address(this), _user, _amount);
-    }
-
-    function transferToMainnet(uint256 _amount) external {
-        _transfer(msg.sender, address(this), _amount);
-        bytes4 _methodSelector =
-            IXGTTokenMainnet(address(0)).transferredToMainnet.selector;
-        bytes memory data =
-            abi.encodeWithSelector(
-                _methodSelector,
-                msg.sender,
-                _amount,
-                outgoingTransferNonce++
-            );
-        bridge.requireToPassMessage(mainnetContract, data, 500000);
+        // require(
+        //     vesting.initializeVesting(
+        //         address(this),
+        //         beneficiaries,
+        //         XION_RESERVE,
+        //         _vestedAmountsFounders,
+        //         _vestedAmountsTeam,
+        //         _vestedAmountsCommunity,
+        //         undistributedTeam,
+        //         undistributedCommunity,
+        //         msg.sender
+        //     ),
+        //     "XGT-FAILED-TO-INIT-VESTING-CONTRACT"
+        // );
     }
 
     // Safety override
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint256 amount)
+        public
+        override
+        returns (bool)
+    {
         require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
         return super.transfer(recipient, amount);
     }
@@ -160,7 +109,7 @@ contract XGTToken is Initializable, Ownable, ERC20Detailed, ERC20Mintable {
         address sender,
         address recipient,
         uint256 amount
-    ) public returns (bool) {
+    ) public override returns (bool) {
         require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
         return super.transferFrom(sender, recipient, amount);
     }
