@@ -4,10 +4,11 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTTokenBridge.sol";
 
-contract XGTTokenOutpost is Ownable, ERC20Burnable {
+contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
     using SafeMath for uint256;
 
     address public homeToken;
@@ -64,7 +65,7 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable {
         address _user,
         uint256 _amount,
         uint256 _nonce
-    ) external {
+    ) external nonReentrant {
         require(msg.sender == address(messageBridge), "XGT-NOT-BRIDGE");
         require(
             messageBridge.messageSender() == homeBridge,
@@ -80,7 +81,10 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable {
         outgoingTransfer(_amount, msg.sender);
     }
 
-    function outgoingTransfer(uint256 _amount, address _recipient) public {
+    function outgoingTransfer(uint256 _amount, address _recipient)
+        public
+        nonReentrant
+    {
         _burn(msg.sender, _amount);
         bytes4 _methodSelector =
             IXGTTokenBridge(address(0)).incomingTransfer.selector;

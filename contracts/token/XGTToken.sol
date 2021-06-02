@@ -3,6 +3,7 @@ pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import "../interfaces/IVestingSpawner.sol";
 
 contract XGTToken is ERC20Burnable {
     using SafeMath for uint256;
@@ -19,76 +20,40 @@ contract XGTToken is ERC20Burnable {
     uint256 public constant MARKET_MAKING = 50000000 * 10**18; // 50 million
 
     constructor(
-        address _vestingContract,
-        address[] memory _reserveAddresses,
-        address[] memory _vestedAddressesFounders,
-        // uint256[] memory _vestedAmountsFounders,
-        address[] memory _vestedAddressesTeam,
-        uint256[] memory _vestedAmountsTeam,
-        address[] memory _vestedAddressesCommunity,
-        uint256[] memory _vestedAmountsCommunity
+        address _vestingSpawner,
+        address _rewardChest,
+        address _marketMakingMultiSig
     ) ERC20("Xion Global Token", "XGT") {
-        require(_vestingContract != address(0), "XGT-INVALID-VESTING-ADDRESS");
+        require(_vestingSpawner != address(0), "XGT-INVALID-VESTING-ADDRESS");
+        require(_rewardChest != address(0), "XGT-INVALID-REWARD-CHEST-ADDRESS");
+        require(
+            _marketMakingMultiSig != address(0),
+            "XGT-INVALID-MARKET-MAKING-MULTISIG-ADDRESS"
+        );
+        IVestingSpawner vestingSpawner = IVestingSpawner(_vestingSpawner);
 
         // General token utility allocations
-        _mint(_reserveAddresses[0], ISSUE_RESERVE);
-        _mint(_reserveAddresses[1], MARKET_MAKING);
+        _mint(_rewardChest, ISSUE_RESERVE);
 
-        // Specific allocations subject to vesting
-        // of 24 months, where 1/24th becomes available each month
-        // vesting = IVesting(_vestingContract);
-        _mint(_vestingContract, XION_RESERVE);
-        _mint(_vestingContract, FOUNDERS_RESERVE);
-        _mint(_vestingContract, COMMUNITY_AND_AIRDROPS);
-        _mint(_vestingContract, TEAM_AND_ADVISORS);
+        _mint(address(this), ISSUE_RESERVE);
+        _approve(address(this), _vestingSpawner, ISSUE_RESERVE);
+        vestingSpawner.fundSpawner(1, ISSUE_RESERVE);
+
+        _mint(address(this), FOUNDERS_RESERVE);
+        _approve(address(this), _vestingSpawner, FOUNDERS_RESERVE);
+        vestingSpawner.fundSpawner(2, FOUNDERS_RESERVE);
+
+        _mint(address(this), TEAM_AND_ADVISORS);
+        _approve(address(this), _vestingSpawner, TEAM_AND_ADVISORS);
+        vestingSpawner.fundSpawner(3, TEAM_AND_ADVISORS);
+
+        _mint(address(this), COMMUNITY_AND_AIRDROPS);
+        _approve(address(this), _vestingSpawner, COMMUNITY_AND_AIRDROPS);
+        vestingSpawner.fundSpawner(4, COMMUNITY_AND_AIRDROPS);
+
+        _mint(_marketMakingMultiSig, MARKET_MAKING);
 
         require(totalSupply() == MAX_SUPPLY, "XGT-INVALID-SUPPLY");
-
-        uint256 index = 4;
-        address[] memory beneficiaries =
-            new address[](
-                _vestedAddressesFounders
-                    .length
-                    .add(_vestedAddressesTeam.length)
-                    .add(_vestedAddressesCommunity.length)
-                    .add(1)
-            );
-
-        beneficiaries[0] = _reserveAddresses[2];
-        beneficiaries[1] = _vestedAddressesFounders[0];
-        beneficiaries[2] = _vestedAddressesFounders[1];
-        beneficiaries[3] = _vestedAddressesFounders[2];
-
-        uint256 undistributedTeam = TEAM_AND_ADVISORS;
-        for (uint256 i = 0; i < _vestedAddressesTeam.length; i++) {
-            undistributedTeam = undistributedTeam.sub(_vestedAmountsTeam[i]);
-            beneficiaries[index + i] = _vestedAddressesTeam[i];
-        }
-        index = index + _vestedAddressesTeam.length;
-
-        uint256 undistributedCommunity = COMMUNITY_AND_AIRDROPS;
-        for (uint256 i = 0; i < _vestedAddressesCommunity.length; i++) {
-            undistributedCommunity = undistributedCommunity.sub(
-                _vestedAmountsCommunity[i]
-            );
-            beneficiaries[index + i] = _vestedAddressesCommunity[i];
-        }
-        index = index + _vestedAddressesCommunity.length;
-
-        // require(
-        //     vesting.initializeVesting(
-        //         address(this),
-        //         beneficiaries,
-        //         XION_RESERVE,
-        //         _vestedAmountsFounders,
-        //         _vestedAmountsTeam,
-        //         _vestedAmountsCommunity,
-        //         undistributedTeam,
-        //         undistributedCommunity,
-        //         msg.sender
-        //     ),
-        //     "XGT-FAILED-TO-INIT-VESTING-CONTRACT"
-        // );
     }
 
     // Safety override
