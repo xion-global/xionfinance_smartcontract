@@ -4,9 +4,6 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 
-// import "../interfaces/IBridgeContract.sol";
-// import "../interfaces/IXGTTokenMainnet.sol";
-
 contract XGTToken is ERC20Burnable {
     using SafeMath for uint256;
 
