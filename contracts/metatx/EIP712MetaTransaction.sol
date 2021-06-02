@@ -1,10 +1,11 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity 0.7.6;
 
-import "@openzeppelin/openzeppelin-contracts-upgradeable/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "./EIP712Base.sol";
 
 contract EIP712MetaTransaction is EIP712Base {
-    using SafeMath for uint256;
+    using SafeMathUpgradeable for uint256;
 
     bool internal initializedAlreadyMeta;
 
