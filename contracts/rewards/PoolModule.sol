@@ -4,16 +4,16 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/IRewardChest.sol";
 
-contract XGTRewardChest is Initializable, OwnableUpgradeable {
+contract PoolModule is Initializable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
 
     IERC20 public xgt;
+    IRewardChest public rewardChest;
+
     uint256 constant YEAR_IN_SECONDS = 31536000;
 
-    ////////////////////////////////////////////
-    // Farming
-    ////////////////////////////////////////////
     struct Pool {
         address addr;
         uint256 networkID;
@@ -33,29 +33,9 @@ contract XGTRewardChest is Initializable, OwnableUpgradeable {
 
     mapping(address => mapping(uint256 => uint256)) public userPoolTokens;
     mapping(address => uint256) public userLastClaimedPool;
-    mapping(address => uint256) public userWithdrawable;
-    ////////////////////////////////////////////
-
-    ////////////////////////////////////////////
-    // Airdrops
-    ////////////////////////////////////////////
-    struct Airdrop {
-        uint256 amount;
-        uint256 vestingEnd;
-        bool claimed;
-    }
-    mapping(address => Airdrop[]) public airdrops;
-    ////////////////////////////////////////////
-
-    ////////////////////////////////////////////
-    // Security
-    ////////////////////////////////////////////
-    bool public paused;
-    ////////////////////////////////////////////
 
     mapping(address => bool) public indexerAddress;
 
-    event PauseStateChanged(address performer, bool paused);
     event PoolAdded(address poolAddress, uint256 networkID, uint256 bonusAPY);
     event PoolActiveStateToggled(
         address poolAddress,
@@ -69,18 +49,19 @@ contract XGTRewardChest is Initializable, OwnableUpgradeable {
     );
     event PoolBaseAPYChanged(uint256 bonusAPY);
 
-    function initializeGenerator() public {}
+    function initialize(address _xgt, address _rewardChest) public initializer {
+        xgt = IERC20(_xgt);
+        rewardChest = IRewardChest(_rewardChest);
+
+        OwnableUpgradeable.__Ownable_init();
+        transferOwnership(rewardChest.owner());
+    }
 
     function setIndexerAddress(address _address, bool _authorized)
         external
         onlyOwner
     {
         indexerAddress[_address] = _authorized;
-    }
-
-    function setPauseContract(bool _pause) external onlyOwner {
-        paused = _pause;
-        emit PauseStateChanged(msg.sender, _pause);
     }
 
     function addPool(
@@ -157,88 +138,19 @@ contract XGTRewardChest is Initializable, OwnableUpgradeable {
         }
     }
 
-    function addAirdrops(
-        address[] calldata _users,
-        uint256 _amount,
-        uint256 _vestingDuration
-    ) external onlyOwner {
-        require(
-            _users.length >= 1,
-            "XGT-REWARD-CHEST-NEED-AT-LEAST-ONE-ADDRESS"
-        );
-        uint256 vestingEnd = block.timestamp.add(_vestingDuration);
-        for (uint256 i = 0; i < _users.length; i++) {
-            airdrops[_users[i]].push(Airdrop(_amount, vestingEnd, false));
-        }
-    }
-
     function getLatestPoolPrice(uint256 _id) external view returns (uint256) {
         return pools[_id].prices[0].xgtPerLPToken;
     }
 
-    function claim() external onlyIfNotPaused returns (uint256 withdrawAmount) {
-        claimPool(msg.sender);
-        claimAirdrops(msg.sender);
-
-        withdrawAmount = userWithdrawable[msg.sender];
-        userWithdrawable[msg.sender] = 0;
-
-        require(
-            xgt.transfer(msg.sender, withdrawAmount),
-            "XGT-REWARD-CHEST-WITHDRAW-TRANSFER-FAILED"
-        );
-
-        return withdrawAmount;
-    }
-
-    function getClaimable(address _user) external view returns (uint256) {
-        // withdrawable balance
-        uint256 total = userWithdrawable[_user];
-
-        // add unclaimed pool rewards
-        total = total.add(getUserUnclaimedRewardsPool(_user));
-
-        // add any matured airdrops
-        if (airdrops[_user].length >= 1) {
-            for (uint256 i = 0; i < airdrops[_user].length; i++) {
-                if (
-                    !airdrops[_user][i].claimed &&
-                    airdrops[_user][i].vestingEnd >= block.timestamp
-                ) {
-                    total = total.add(airdrops[_user][i].amount);
-                }
-            }
-        }
-        return total;
-    }
-
-    function claimPool(address _user) internal {
-        uint256 totalOutstanding = getUserUnclaimedRewardsPool(_user);
+    function claimModule(address _user) external onlyRewardChest {
         userLastClaimedPool[_user] = block.timestamp;
-        userWithdrawable[_user] = userWithdrawable[_user].add(totalOutstanding);
+        require(
+            rewardChest.addToBalance(_user, getClaimable(_user)),
+            "XGT-REWARD-MODULE-FAILED-TO-ADD-TO-BALANCE"
+        );
     }
 
-    function claimAirdrops(address _user) internal {
-        if (airdrops[_user].length >= 1) {
-            for (uint256 i = 0; i < airdrops[_user].length; i++) {
-                if (
-                    !airdrops[_user][i].claimed &&
-                    airdrops[_user][i].vestingEnd >= block.timestamp
-                ) {
-                    airdrops[_user][i].claimed = true;
-                    userWithdrawable[_user] = userWithdrawable[_user].add(
-                        airdrops[_user][i].amount
-                    );
-                }
-            }
-        }
-    }
-
-    function getUserUnclaimedRewardsPool(address _user)
-        internal
-        view
-        returns (uint256)
-    {
+    function getClaimable(address _user) public view returns (uint256) {
         uint256 total = 0;
         uint256 last = userLastClaimedPool[_user];
         for (uint256 i = 1; i <= currentPoolID; i++) {
@@ -307,16 +219,18 @@ contract XGTRewardChest is Initializable, OwnableUpgradeable {
         return total;
     }
 
-    modifier onlyIfNotPaused() {
-        if (!paused) {
-            _;
-        }
-    }
-
     modifier onlyIndexer() {
         require(
             indexerAddress[msg.sender],
             "XGT-REWARD-CHEST-NOT-AUTHORIZED-INDEXER"
+        );
+        _;
+    }
+
+    modifier onlyRewardChest() {
+        require(
+            msg.sender == address(rewardChest),
+            "XGT-REWARD-CHEST-NOT-AUTHORIZED"
         );
         _;
     }
