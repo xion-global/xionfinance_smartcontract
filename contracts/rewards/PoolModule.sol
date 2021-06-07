@@ -71,9 +71,13 @@ contract PoolModule is Initializable, OwnableUpgradeable {
     ) external onlyOwner {
         currentPoolID++;
         PriceEntry[] storage prices;
-        Pool memory newPool =
-            Pool(_address, _networkID, _bonusAPY, prices, true);
-        pools[currentPoolID] = newPool;
+        pools[currentPoolID] = Pool(
+            _address,
+            _networkID,
+            _bonusAPY,
+            prices,
+            true
+        );
         emit PoolAdded(_address, _networkID, _bonusAPY);
     }
 

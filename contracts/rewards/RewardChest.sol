@@ -22,9 +22,10 @@ contract RewardChest is OwnableUpgradeable {
 
     event PauseStateChanged(address performer, bool paused);
 
-    function initialize(address _multiSig) public initializer {
+    function initialize(address _multiSig, address _xgt) public initializer {
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(_multiSig);
+        xgt = IERC20(_xgt);
     }
 
     function toggleModule(address _module, bool _active) external onlyOwner {
@@ -57,7 +58,11 @@ contract RewardChest is OwnableUpgradeable {
         return true;
     }
 
-    function claim() external onlyIfNotPaused returns (uint256 withdrawAmount) {
+    function claim() external returns (uint256 withdrawAmount) {
+        if (paused) {
+            return 0;
+        }
+
         for (uint256 i = 0; i < modules.length; i++) {
             IRewardModule(modules[i]).claimModule(msg.sender);
         }
@@ -88,12 +93,6 @@ contract RewardChest is OwnableUpgradeable {
         }
 
         return total;
-    }
-
-    modifier onlyIfNotPaused() {
-        if (!paused) {
-            _;
-        }
     }
 
     modifier onlyModule() {

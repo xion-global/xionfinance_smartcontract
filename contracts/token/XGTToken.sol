@@ -35,9 +35,9 @@ contract XGTToken is ERC20Burnable {
         // General token utility allocations
         _mint(_rewardChest, ISSUE_RESERVE);
 
-        _mint(address(this), ISSUE_RESERVE);
-        _approve(address(this), _vestingSpawner, ISSUE_RESERVE);
-        vestingSpawner.fundSpawner(1, ISSUE_RESERVE);
+        _mint(address(this), XION_RESERVE);
+        _approve(address(this), _vestingSpawner, XION_RESERVE);
+        vestingSpawner.fundSpawner(1, XION_RESERVE);
 
         _mint(address(this), FOUNDERS_RESERVE);
         _approve(address(this), _vestingSpawner, FOUNDERS_RESERVE);
