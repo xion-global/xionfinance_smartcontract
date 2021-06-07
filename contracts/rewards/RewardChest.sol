@@ -39,6 +39,7 @@ contract RewardChest is OwnableUpgradeable {
                         modules[i] = modules[modules.length - 1];
                     }
                     modules.pop();
+                    break;
                 }
             }
         }
