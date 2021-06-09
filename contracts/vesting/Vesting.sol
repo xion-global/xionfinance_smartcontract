@@ -9,9 +9,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract Vesting is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
-    uint256 public constant EPOCH_DURATION = (365 * 24 * 60 * 60) / 12; // 1 Month in Seconds
-
     uint256 public startTime;
+    uint256 public epochDuration;
     uint256 public epochsCliff;
     uint256 public epochsVesting;
 
@@ -24,6 +23,7 @@ contract Vesting is Ownable, ReentrancyGuard {
         address _recipient,
         address _xgtTokenAddress,
         uint256 _startTime,
+        uint256 _epochDuration,
         uint256 _epochsCliff,
         uint256 _epochsVesting,
         uint256 _totalBalance
@@ -32,6 +32,7 @@ contract Vesting is Ownable, ReentrancyGuard {
         transferOwnership(_recipient);
         xgt = IERC20(_xgtTokenAddress);
         startTime = _startTime;
+        epochDuration = _epochDuration;
         epochsCliff = _epochsCliff;
         epochsVesting = _epochsVesting;
         totalDistributedBalance = _totalBalance;
@@ -72,6 +73,6 @@ contract Vesting is Ownable, ReentrancyGuard {
 
     function getCurrentEpoch() public view returns (uint256) {
         if (block.timestamp < startTime) return 0;
-        return (block.timestamp - startTime) / EPOCH_DURATION + 1;
+        return (block.timestamp - startTime) / epochDuration + 1;
     }
 }

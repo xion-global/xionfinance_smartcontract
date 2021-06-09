@@ -17,6 +17,7 @@ contract AirdropModule is Initializable, OwnableUpgradeable {
         uint256 vestingEnd;
         bool claimed;
     }
+
     mapping(address => Airdrop[]) public airdrops;
 
     event AirdropAdded(

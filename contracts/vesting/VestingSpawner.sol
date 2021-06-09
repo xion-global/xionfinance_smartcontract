@@ -14,6 +14,14 @@ contract VestingSpawner is Ownable {
     address public implementation;
     mapping(address => address) public vestingContracts;
 
+    uint256 public constant EPOCH_DURATION_WEEK = 24 * 60 * 60 * 7;
+    uint256 public constant EPOCH_DURATION_MONTH = (365 * 24 * 60 * 60) / 12;
+
+    uint256 public constant MINIMUM_CLIFF_EPOCHS_TEAM =
+        EPOCH_DURATION_MONTH * 6;
+    uint256 public constant MINIMUM_VESTING_EPOCHS_TEAM =
+        EPOCH_DURATION_MONTH * 48;
+
     uint256 public reserveTokensLeft;
     uint256 public foundersTokensLeft;
     uint256 public teamTokensLeft;
@@ -23,6 +31,7 @@ contract VestingSpawner is Ownable {
         address indexed recipient,
         uint256 amount,
         uint256 startDate,
+        uint256 epochDuration,
         uint256 epochsCliff,
         uint256 epochsVesting
     );
@@ -56,6 +65,7 @@ contract VestingSpawner is Ownable {
         address _recipient,
         uint256 _amount,
         uint256 _startTime,
+        uint256 _epochDuration,
         uint256 _epochsCliff,
         uint256 _epochsVesting,
         uint256 _allocation
@@ -63,6 +73,12 @@ contract VestingSpawner is Ownable {
         require(
             vestingContracts[_recipient] == address(0),
             "VESTING-SPAWNER-RECIPIENT-ALREADY-EXISTS"
+        );
+
+        require(
+            _epochDuration == EPOCH_DURATION_WEEK ||
+                _epochDuration == EPOCH_DURATION_MONTH,
+            "VESTING-SPAWNER-INVALID-EPOCH-DURATION"
         );
 
         require(
@@ -76,28 +92,26 @@ contract VestingSpawner is Ownable {
         );
 
         if (_allocation == 1) {
-            require(
-                _epochsVesting >= 24,
-                "VESTING-SPAWNER-VESTING-DURATION-TOO-SHORT"
-            );
             reserveTokensLeft = reserveTokensLeft.sub(_amount);
         } else if (_allocation == 2) {
             require(
-                _epochsVesting >= 48 && _epochsCliff >= 6,
+                _epochsVesting.mul(_epochDuration) >=
+                    MINIMUM_VESTING_EPOCHS_TEAM &&
+                    _epochsCliff.mul(_epochDuration) >=
+                    MINIMUM_CLIFF_EPOCHS_TEAM,
                 "VESTING-SPAWNER-VESTING-DURATION-TOO-SHORT"
             );
             foundersTokensLeft = foundersTokensLeft.sub(_amount);
         } else if (_allocation == 3) {
             require(
-                _epochsVesting >= 48 && _epochsCliff >= 6,
+                _epochsVesting.mul(_epochDuration) >=
+                    MINIMUM_VESTING_EPOCHS_TEAM &&
+                    _epochsCliff.mul(_epochDuration) >=
+                    MINIMUM_CLIFF_EPOCHS_TEAM,
                 "VESTING-SPAWNER-VESTING-DURATION-TOO-SHORT"
             );
             teamTokensLeft = teamTokensLeft.sub(_amount);
         } else if (_allocation == 4) {
-            require(
-                _epochsVesting >= 48 && _epochsCliff >= 6,
-                "VESTING-SPAWNER-VESTING-DURATION-TOO-SHORT"
-            );
             communityTokensLeft = communityTokensLeft.sub(_amount);
         }
 
@@ -108,6 +122,7 @@ contract VestingSpawner is Ownable {
             _recipient,
             address(xgt),
             _startTime,
+            _epochDuration,
             _epochsCliff,
             _epochsVesting,
             _amount
@@ -116,6 +131,7 @@ contract VestingSpawner is Ownable {
             _recipient,
             _amount,
             _startTime,
+            _epochDuration,
             _epochsCliff,
             _epochsVesting
         );
