@@ -34,12 +34,20 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 boost;
     }
 
+    struct PromotionBoost {
+        uint256 id;
+        uint256 cutoff;
+        uint256 duration;
+        uint256 boost;
+    }
+
     uint256 public currentPoolID = 0;
     uint256 public baseAPYPools;
     mapping(uint256 => Pool) public pools;
 
     Boost[] public poolBoosts;
     mapping(address => Boost[]) public userBoosts;
+    PromotionBoost[] public promotionBoosts;
 
     mapping(address => mapping(uint256 => uint256)) public userPoolTokens;
     mapping(address => uint256) public userLastClaimedPool;
@@ -145,26 +153,51 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         );
         for (uint256 i = 0; i < _ids.length; i++) {
             userPoolTokens[_user][i] = _amount[i];
+            for (uint256 j = 0; j < promotionBoosts.length; j++) {
+                if (
+                    promotionBoosts[j].id == i &&
+                    promotionBoosts[j].cutoff >= block.timestamp
+                ) {
+                    userBoosts[_user].push(
+                        Boost(
+                            i,
+                            block.timestamp,
+                            block.timestamp.add(promotionBoosts[j].duration),
+                            promotionBoosts[j].boost
+                        )
+                    );
+                }
+            }
+        }
+        // remove old boosts
+        for (uint256 k = 0; k < userBoosts[_user].length; k++) {
+            if (userBoosts[_user][k].end <= userLastClaimedPool[_user]) {
+                _removeUserBoost(_user, k);
+            }
         }
     }
 
-    function addPoolBoost(
+    function addPromotionBoost(
         uint256 _id,
-        uint256 _start,
-        uint256 _end,
+        uint256 _cutOffTime,
+        uint256 _duration,
         uint256 _boost
     ) external onlyOwner {
-        poolBoosts.push(Boost(_id, _start, _end, _boost));
+        promotionBoosts.push(
+            PromotionBoost(_id, _cutOffTime, _duration, _boost)
+        );
     }
 
-    function removePoolBoost(uint256 _index) external onlyOwner {
-        if (poolBoosts.length != 1) {
-            poolBoosts[_index] = poolBoosts[poolBoosts.length - 1];
+    function removePromotionBoost(uint256 _index) external onlyOwner {
+        if (promotionBoosts.length != 1) {
+            promotionBoosts[_index] = promotionBoosts[
+                promotionBoosts.length - 1
+            ];
         }
-        poolBoosts.pop();
+        promotionBoosts.pop();
     }
 
-    function getPoolBoost(uint256 _index)
+    function getPromotionBoost(uint256 _index)
         external
         view
         returns (
@@ -175,14 +208,14 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         )
     {
         return (
-            poolBoosts[_index].id,
-            poolBoosts[_index].start,
-            poolBoosts[_index].end,
-            poolBoosts[_index].boost
+            promotionBoosts[_index].id,
+            promotionBoosts[_index].cutoff,
+            promotionBoosts[_index].duration,
+            promotionBoosts[_index].boost
         );
     }
 
-    function adUserBoost(
+    function addUserBoost(
         address[] calldata _users,
         uint256 _id,
         uint256 _start,
@@ -225,16 +258,50 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         );
     }
 
+    function addPoolBoost(
+        uint256 _id,
+        uint256 _start,
+        uint256 _end,
+        uint256 _boost
+    ) external onlyOwner {
+        poolBoosts.push(Boost(_id, _start, _end, _boost));
+    }
+
+    function removePoolBoost(uint256 _index) external onlyOwner {
+        if (poolBoosts.length != 1) {
+            poolBoosts[_index] = poolBoosts[poolBoosts.length - 1];
+        }
+        poolBoosts.pop();
+    }
+
+    function getPoolBoost(uint256 _index)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            poolBoosts[_index].id,
+            poolBoosts[_index].start,
+            poolBoosts[_index].end,
+            poolBoosts[_index].boost
+        );
+    }
+
     function getLatestPoolPrice(uint256 _id) external view returns (uint256) {
         return pools[_id].prices[0].xgtPerLPToken;
     }
 
     function claimModule(address _user) external onlyRewardChest {
-        userLastClaimedPool[_user] = block.timestamp;
         require(
             rewardChest.addToBalance(_user, getClaimable(_user)),
             "XGT-REWARD-MODULE-FAILED-TO-ADD-TO-BALANCE"
         );
+        userLastClaimedPool[_user] = block.timestamp;
     }
 
     function getClaimable(address _user) public view returns (uint256) {
