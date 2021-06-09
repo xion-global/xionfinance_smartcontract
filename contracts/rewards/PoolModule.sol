@@ -41,6 +41,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 boost;
         uint256 maxUsers;
         uint256 users;
+        bool active;
     }
 
     uint256 public currentPoolID = 0;
@@ -53,6 +54,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
 
     mapping(address => mapping(uint256 => uint256)) public userPoolTokens;
     mapping(address => uint256) public userLastClaimedPool;
+    mapping(address => mapping(uint256 => bool)) public userUsedPromotionBoost;
 
     mapping(address => bool) public indexerAddress;
 
@@ -157,9 +159,11 @@ contract PoolModule is Initializable, OwnableUpgradeable {
             userPoolTokens[_user][i] = _amount[i];
             for (uint256 j = 0; j < promotionBoosts.length; j++) {
                 if (
+                    promotionBoosts[j].active &&
                     promotionBoosts[j].id == i &&
                     promotionBoosts[j].cutoff >= block.timestamp &&
-                    promotionBoosts[j].users < promotionBoosts[j].maxUsers
+                    promotionBoosts[j].users < promotionBoosts[j].maxUsers &&
+                    !userUsedPromotionBoost[_user][j]
                 ) {
                     userBoosts[_user].push(
                         Boost(
@@ -170,6 +174,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                         )
                     );
                     promotionBoosts[j].users++;
+                    userUsedPromotionBoost[_user][j] = true;
                 }
             }
         }
@@ -193,17 +198,20 @@ contract PoolModule is Initializable, OwnableUpgradeable {
             maxUsers = 2**256 - 1;
         }
         promotionBoosts.push(
-            PromotionBoost(_id, _cutOffTime, _duration, _boost, maxUsers, 0)
+            PromotionBoost(
+                _id,
+                _cutOffTime,
+                _duration,
+                _boost,
+                maxUsers,
+                0,
+                true
+            )
         );
     }
 
-    function removePromotionBoost(uint256 _index) external onlyOwner {
-        if (promotionBoosts.length != 1) {
-            promotionBoosts[_index] = promotionBoosts[
-                promotionBoosts.length - 1
-            ];
-        }
-        promotionBoosts.pop();
+    function disablePromotionBoost(uint256 _index) external onlyOwner {
+        promotionBoosts[_index].active = false;
     }
 
     function getPromotionBoost(uint256 _index)
@@ -213,14 +221,20 @@ contract PoolModule is Initializable, OwnableUpgradeable {
             uint256,
             uint256,
             uint256,
-            uint256
+            uint256,
+            uint256,
+            uint256,
+            bool
         )
     {
         return (
             promotionBoosts[_index].id,
             promotionBoosts[_index].cutoff,
             promotionBoosts[_index].duration,
-            promotionBoosts[_index].boost
+            promotionBoosts[_index].boost,
+            promotionBoosts[_index].maxUsers,
+            promotionBoosts[_index].users,
+            promotionBoosts[_index].active
         );
     }
 
