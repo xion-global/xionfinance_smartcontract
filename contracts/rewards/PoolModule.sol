@@ -39,6 +39,8 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 cutoff;
         uint256 duration;
         uint256 boost;
+        uint256 maxUsers;
+        uint256 users;
     }
 
     uint256 public currentPoolID = 0;
@@ -156,7 +158,8 @@ contract PoolModule is Initializable, OwnableUpgradeable {
             for (uint256 j = 0; j < promotionBoosts.length; j++) {
                 if (
                     promotionBoosts[j].id == i &&
-                    promotionBoosts[j].cutoff >= block.timestamp
+                    promotionBoosts[j].cutoff >= block.timestamp &&
+                    promotionBoosts[j].users < promotionBoosts[j].maxUsers
                 ) {
                     userBoosts[_user].push(
                         Boost(
@@ -166,6 +169,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                             promotionBoosts[j].boost
                         )
                     );
+                    promotionBoosts[j].users++;
                 }
             }
         }
@@ -181,10 +185,15 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 _id,
         uint256 _cutOffTime,
         uint256 _duration,
-        uint256 _boost
+        uint256 _boost,
+        uint256 _validForUsers
     ) external onlyOwner {
+        uint256 maxUsers = _validForUsers;
+        if (_validForUsers == 0) {
+            maxUsers = 2**256 - 1;
+        }
         promotionBoosts.push(
-            PromotionBoost(_id, _cutOffTime, _duration, _boost)
+            PromotionBoost(_id, _cutOffTime, _duration, _boost, maxUsers, 0)
         );
     }
 
