@@ -27,9 +27,19 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 blocknumber;
     }
 
+    struct Boost {
+        uint256 id;
+        uint256 start;
+        uint256 end;
+        uint256 boost;
+    }
+
     uint256 public currentPoolID = 0;
     uint256 public baseAPYPools;
     mapping(uint256 => Pool) public pools;
+
+    Boost[] public poolBoosts;
+    mapping(address => Boost[]) public userBoosts;
 
     mapping(address => mapping(uint256 => uint256)) public userPoolTokens;
     mapping(address => uint256) public userLastClaimedPool;
@@ -70,14 +80,10 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 _bonusAPY
     ) external onlyOwner {
         currentPoolID++;
-        PriceEntry[] storage prices;
-        pools[currentPoolID] = Pool(
-            _address,
-            _networkID,
-            _bonusAPY,
-            prices,
-            true
-        );
+        pools[currentPoolID].addr = _address;
+        pools[currentPoolID].networkID = _networkID;
+        pools[currentPoolID].bonusAPY = _bonusAPY;
+        pools[currentPoolID].active = true;
         emit PoolAdded(_address, _networkID, _bonusAPY);
     }
 
@@ -140,6 +146,83 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         for (uint256 i = 0; i < _ids.length; i++) {
             userPoolTokens[_user][i] = _amount[i];
         }
+    }
+
+    function addPoolBoost(
+        uint256 _id,
+        uint256 _start,
+        uint256 _end,
+        uint256 _boost
+    ) external onlyOwner {
+        poolBoosts.push(Boost(_id, _start, _end, _boost));
+    }
+
+    function removePoolBoost(uint256 _index) external onlyOwner {
+        if (poolBoosts.length != 1) {
+            poolBoosts[_index] = poolBoosts[poolBoosts.length - 1];
+        }
+        poolBoosts.pop();
+    }
+
+    function getPoolBoost(uint256 _index)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            poolBoosts[_index].id,
+            poolBoosts[_index].start,
+            poolBoosts[_index].end,
+            poolBoosts[_index].boost
+        );
+    }
+
+    function adUserBoost(
+        address[] calldata _users,
+        uint256 _id,
+        uint256 _start,
+        uint256 _end,
+        uint256 _boost
+    ) external onlyOwner {
+        for (uint256 i = 0; i < _users.length; i++) {
+            userBoosts[_users[i]].push(Boost(_id, _start, _end, _boost));
+        }
+    }
+
+    function removeUserBoost(address _user, uint256 _index) external onlyOwner {
+        _removeUserBoost(_user, _index);
+    }
+
+    function _removeUserBoost(address _user, uint256 _index) internal {
+        if (userBoosts[_user].length != 1) {
+            userBoosts[_user][_index] = userBoosts[_user][
+                userBoosts[_user].length - 1
+            ];
+        }
+        userBoosts[_user].pop();
+    }
+
+    function getUserBoost(address _user, uint256 _index)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            userBoosts[_user][_index].id,
+            userBoosts[_user][_index].start,
+            userBoosts[_user][_index].end,
+            userBoosts[_user][_index].boost
+        );
     }
 
     function getLatestPoolPrice(uint256 _id) external view returns (uint256) {
@@ -214,13 +297,79 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                     }
                 }
             }
+            uint256 boosts = _calculateBoosts(i, _user);
             total = total.add(
                 (thisPoolTotal.mul(2))
-                    .mul(baseAPYPools.add(pools[i].bonusAPY))
+                    .mul(baseAPYPools.add(pools[i].bonusAPY).add(boosts))
                     .div(10000)
             );
         }
         return total;
+    }
+
+    function _calculateBoosts(uint256 _id, address _user)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 last = userLastClaimedPool[_user];
+        uint256 boosts = 0;
+        for (uint256 i = 0; i < poolBoosts.length; i++) {
+            // id == 0 means every pool, otherwise pool ids start from 1
+            if (
+                (poolBoosts[i].id == 0 || poolBoosts[i].id == _id) &&
+                poolBoosts[i].end > last
+            ) {
+                // default: apply bonus from last time claimed until now
+                uint256 from = last;
+                uint256 to = block.timestamp;
+                // if the bonus started after the last claim time
+                // set it to the starting time of the bonus
+                if (poolBoosts[i].start > last) {
+                    from = poolBoosts[i].start;
+                }
+                // if the bonus ended already
+                // set the ending time of the bonus to
+                // the correct time
+                if (poolBoosts[i].end < to) {
+                    to = poolBoosts[i].end;
+                }
+                boosts = boosts.add(
+                    (poolBoosts[i].boost.mul(to.sub(from))).div(
+                        block.timestamp.sub(last)
+                    )
+                );
+            }
+        }
+        for (uint256 j = 0; j < userBoosts[_user].length; j++) {
+            if (
+                (userBoosts[_user][j].id == 0 ||
+                    userBoosts[_user][j].id == j) &&
+                userBoosts[_user][j].end > last
+            ) {
+                // default: apply bonus from last time claimed until now
+                uint256 from = last;
+                uint256 to = block.timestamp;
+
+                // if the bonus started after the last claim time
+                // set it to the starting time of the bonus
+                if (userBoosts[_user][j].start > last) {
+                    from = userBoosts[_user][j].start;
+                }
+                // if the bonus ended already
+                // set the ending time of the bonus to
+                // the correct time
+                if (userBoosts[_user][j].end < to) {
+                    to = userBoosts[_user][j].end;
+                }
+                boosts = boosts.add(
+                    (userBoosts[_user][j].boost.mul(to.sub(from))).div(
+                        block.timestamp.sub(last)
+                    )
+                );
+            }
+        }
+        return boosts;
     }
 
     modifier onlyIndexer() {
