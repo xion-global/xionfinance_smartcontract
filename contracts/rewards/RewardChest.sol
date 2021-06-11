@@ -4,14 +4,19 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "../metatx/EIP712MetaTransaction.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRewardModule.sol";
+import "../interfaces/IXGTTokenHomeBridge.sol";
 
-contract RewardChest is OwnableUpgradeable {
+contract RewardChest is OwnableUpgradeable, EIP712MetaTransaction {
     using SafeMathUpgradeable for uint256;
 
     IERC20 public xgt;
+
+    // maps chainid -> address to identify the right bridge for the chain
+    mapping(uint256 => address) xgtBridge;
 
     address[] public modules;
     mapping(address => bool) public isActiveModule;
@@ -47,7 +52,14 @@ contract RewardChest is OwnableUpgradeable {
 
     function pauseContract(bool _pause) external onlyOwner {
         paused = _pause;
-        emit PauseStateChanged(msg.sender, _pause);
+        emit PauseStateChanged(msgSender(), _pause);
+    }
+
+    function changeBridgeAddress(address _bridge, uint256 _chainId)
+        external
+        onlyOwner
+    {
+        xgtBridge[_chainId] = _bridge;
     }
 
     function addToBalance(address _user, uint256 _amount)
@@ -65,16 +77,47 @@ contract RewardChest is OwnableUpgradeable {
         }
 
         for (uint256 i = 0; i < modules.length; i++) {
-            IRewardModule(modules[i]).claimModule(msg.sender);
+            IRewardModule(modules[i]).claimModule(msgSender());
         }
 
-        withdrawAmount = userBalance[msg.sender];
-        userBalance[msg.sender] = 0;
+        withdrawAmount = userBalance[msgSender()];
+        userBalance[msgSender()] = 0;
 
         require(
-            xgt.transfer(msg.sender, withdrawAmount),
+            xgt.transfer(msgSender(), withdrawAmount),
             "XGT-REWARD-CHEST-WITHDRAW-TRANSFER-FAILED"
         );
+
+        return withdrawAmount;
+    }
+
+    function claimToNetwork(uint256 _chainId)
+        external
+        returns (uint256 withdrawAmount)
+    {
+        if (paused) {
+            return 0;
+        }
+
+        require(
+            xgtBridge[_chainId] != address(0),
+            "XGT-REWARD-CHEST-INVALID-BRIDGE"
+        );
+
+        for (uint256 i = 0; i < modules.length; i++) {
+            IRewardModule(modules[i]).claimModule(msgSender());
+        }
+
+        withdrawAmount = userBalance[msgSender()];
+        userBalance[msgSender()] = 0;
+
+        if (withdrawAmount > 0) {
+            xgt.approve(xgtBridge[_chainId], withdrawAmount);
+            IXGTTokenHomeBridge(xgtBridge[_chainId]).outgoingTransfer(
+                withdrawAmount,
+                msgSender()
+            );
+        }
 
         return withdrawAmount;
     }
@@ -89,7 +132,7 @@ contract RewardChest is OwnableUpgradeable {
 
         for (uint256 i = 0; i < modules.length; i++) {
             total = total.add(
-                IRewardModule(modules[i]).getClaimable(msg.sender)
+                IRewardModule(modules[i]).getClaimable(msgSender())
             );
         }
 
@@ -98,7 +141,7 @@ contract RewardChest is OwnableUpgradeable {
 
     modifier onlyModule() {
         require(
-            isActiveModule[msg.sender],
+            isActiveModule[msgSender()],
             "XGT-REWARD-CHEST-NOT-AUTHORIZED-MODULE"
         );
         _;
