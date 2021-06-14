@@ -37,19 +37,19 @@ contract XGTToken is ERC20 {
 
         _mint(address(this), XION_RESERVE);
         _approve(address(this), _vestingSpawner, XION_RESERVE);
-        vestingSpawner.fundSpawner(1, XION_RESERVE);
+        vestingSpawner.fundSpawner(0, XION_RESERVE);
 
         _mint(address(this), FOUNDERS_RESERVE);
         _approve(address(this), _vestingSpawner, FOUNDERS_RESERVE);
-        vestingSpawner.fundSpawner(2, FOUNDERS_RESERVE);
+        vestingSpawner.fundSpawner(1, FOUNDERS_RESERVE);
 
         _mint(address(this), TEAM_AND_ADVISORS);
         _approve(address(this), _vestingSpawner, TEAM_AND_ADVISORS);
-        vestingSpawner.fundSpawner(3, TEAM_AND_ADVISORS);
+        vestingSpawner.fundSpawner(2, TEAM_AND_ADVISORS);
 
         _mint(address(this), COMMUNITY_AND_AIRDROPS);
         _approve(address(this), _vestingSpawner, COMMUNITY_AND_AIRDROPS);
-        vestingSpawner.fundSpawner(4, COMMUNITY_AND_AIRDROPS);
+        vestingSpawner.fundSpawner(3, COMMUNITY_AND_AIRDROPS);
 
         _mint(_marketMakingMultiSig, MARKET_MAKING);
 

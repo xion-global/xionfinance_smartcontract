@@ -22,6 +22,8 @@ contract VestingSpawner is Ownable {
     uint256 public constant MINIMUM_VESTING_EPOCHS_TEAM =
         EPOCH_DURATION_MONTH * 48;
 
+    enum Allocation {Reserve, Founders, Team, Community}
+
     uint256 public reserveTokensLeft;
     uint256 public foundersTokensLeft;
     uint256 public teamTokensLeft;
@@ -43,20 +45,20 @@ contract VestingSpawner is Ownable {
 
     function fundSpawner(uint256 _allocation, uint256 _amount) external {
         require(
-            _allocation >= 1 && _allocation <= 4,
+            _allocation >= 0 && _allocation <= 3,
             "VESTING-SPAWNER-INVALID-ALLOCATION"
         );
         require(
             xgt.transferFrom(msg.sender, address(this), _amount),
             "VESTING-SPAWNER-TRANSFER-FAILED"
         );
-        if (_allocation == 1) {
+        if (Allocation(_allocation) == Allocation.Reserve) {
             reserveTokensLeft = reserveTokensLeft.add(_amount);
-        } else if (_allocation == 2) {
+        } else if (Allocation(_allocation) == Allocation.Founders) {
             foundersTokensLeft = foundersTokensLeft.add(_amount);
-        } else if (_allocation == 3) {
+        } else if (Allocation(_allocation) == Allocation.Team) {
             teamTokensLeft = teamTokensLeft.add(_amount);
-        } else if (_allocation == 4) {
+        } else if (Allocation(_allocation) == Allocation.Community) {
             communityTokensLeft = communityTokensLeft.add(_amount);
         }
     }
@@ -82,7 +84,7 @@ contract VestingSpawner is Ownable {
         );
 
         require(
-            _allocation >= 1 && _allocation <= 4,
+            _allocation >= 0 && _allocation <= 3,
             "VESTING-SPAWNER-INVALID-ALLOCATION"
         );
 
@@ -91,9 +93,9 @@ contract VestingSpawner is Ownable {
             "VESTING-SPAWNER-START-TIME-TOO-EARLY"
         );
 
-        if (_allocation == 1) {
+        if (Allocation(_allocation) == Allocation.Reserve) {
             reserveTokensLeft = reserveTokensLeft.sub(_amount);
-        } else if (_allocation == 2) {
+        } else if (Allocation(_allocation) == Allocation.Founders) {
             require(
                 _epochsVesting.mul(_epochDuration) >=
                     MINIMUM_VESTING_EPOCHS_TEAM &&
@@ -102,7 +104,7 @@ contract VestingSpawner is Ownable {
                 "VESTING-SPAWNER-VESTING-DURATION-TOO-SHORT"
             );
             foundersTokensLeft = foundersTokensLeft.sub(_amount);
-        } else if (_allocation == 3) {
+        } else if (Allocation(_allocation) == Allocation.Team) {
             require(
                 _epochsVesting.mul(_epochDuration) >=
                     MINIMUM_VESTING_EPOCHS_TEAM &&
@@ -111,7 +113,7 @@ contract VestingSpawner is Ownable {
                 "VESTING-SPAWNER-VESTING-DURATION-TOO-SHORT"
             );
             teamTokensLeft = teamTokensLeft.sub(_amount);
-        } else if (_allocation == 4) {
+        } else if (Allocation(_allocation) == Allocation.Community) {
             communityTokensLeft = communityTokensLeft.sub(_amount);
         }
 
