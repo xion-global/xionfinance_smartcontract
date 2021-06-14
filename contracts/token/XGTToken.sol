@@ -2,10 +2,10 @@
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../interfaces/IVestingSpawner.sol";
 
-contract XGTToken is ERC20Burnable {
+contract XGTToken is ERC20 {
     using SafeMath for uint256;
 
     // Total Token Supply
