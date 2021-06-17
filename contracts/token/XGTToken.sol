@@ -22,12 +22,13 @@ contract XGTToken is ERC20 {
     constructor(
         address _vestingSpawner,
         address _rewardChest,
-        address _marketMakingMultiSig
+        address _marketMakingAddress,
+        uint256 _marketMakingAmount
     ) ERC20("Xion Global Token", "XGT") {
         require(_vestingSpawner != address(0), "XGT-INVALID-VESTING-ADDRESS");
         require(_rewardChest != address(0), "XGT-INVALID-REWARD-CHEST-ADDRESS");
         require(
-            _marketMakingMultiSig != address(0),
+            _marketMakingAddress != address(0),
             "XGT-INVALID-MARKET-MAKING-MULTISIG-ADDRESS"
         );
         IVestingSpawner vestingSpawner = IVestingSpawner(_vestingSpawner);
@@ -51,7 +52,12 @@ contract XGTToken is ERC20 {
         _approve(address(this), _vestingSpawner, COMMUNITY_AND_AIRDROPS);
         vestingSpawner.fundSpawner(3, COMMUNITY_AND_AIRDROPS);
 
-        _mint(_marketMakingMultiSig, MARKET_MAKING);
+        uint256 marketMakingAmountVested =
+            MARKET_MAKING.sub(_marketMakingAmount);
+        _mint(_marketMakingAddress, _marketMakingAmount);
+        _mint(address(this), marketMakingAmountVested);
+        _approve(address(this), _vestingSpawner, marketMakingAmountVested);
+        vestingSpawner.fundSpawner(4, marketMakingAmountVested);
 
         require(totalSupply() == MAX_SUPPLY, "XGT-INVALID-SUPPLY");
     }

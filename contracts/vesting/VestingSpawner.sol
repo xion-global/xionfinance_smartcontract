@@ -22,12 +22,13 @@ contract VestingSpawner is Ownable {
     uint256 public constant MINIMUM_VESTING_EPOCHS_TEAM =
         EPOCH_DURATION_MONTH * 48;
 
-    enum Allocation {Reserve, Founders, Team, Community}
+    enum Allocation {Reserve, Founders, Team, Community, MarketMaking}
 
     uint256 public reserveTokensLeft;
     uint256 public foundersTokensLeft;
     uint256 public teamTokensLeft;
     uint256 public communityTokensLeft;
+    uint256 public marketMakingTokensLeft;
 
     event VestingContractSpawned(
         address indexed recipient,
@@ -60,6 +61,8 @@ contract VestingSpawner is Ownable {
             teamTokensLeft = teamTokensLeft.add(_amount);
         } else if (Allocation(_allocation) == Allocation.Community) {
             communityTokensLeft = communityTokensLeft.add(_amount);
+        } else if (Allocation(_allocation) == Allocation.MarketMaking) {
+            marketMakingTokensLeft = marketMakingTokensLeft.add(_amount);
         }
     }
 
@@ -115,6 +118,8 @@ contract VestingSpawner is Ownable {
             teamTokensLeft = teamTokensLeft.sub(_amount);
         } else if (Allocation(_allocation) == Allocation.Community) {
             communityTokensLeft = communityTokensLeft.sub(_amount);
+        } else if (Allocation(_allocation) == Allocation.MarketMaking) {
+            marketMakingTokensLeft = marketMakingTokensLeft.sub(_amount);
         }
 
         address newVestingContract = Clones.clone(implementation);
