@@ -35,7 +35,7 @@ contract AirdropModule is Initializable, OwnableUpgradeable {
         transferOwnership(rewardChest.owner());
     }
 
-    function addAirdrops(
+    function addVestedAirdrops(
         address[] calldata _recipients,
         uint256 _amount,
         uint256 _vestingDuration
@@ -48,6 +48,27 @@ contract AirdropModule is Initializable, OwnableUpgradeable {
         for (uint256 i = 0; i < _recipients.length; i++) {
             airdrops[_recipients[i]].push(Airdrop(_amount, vestingEnd, false));
             emit AirdropAdded(_recipients[i], _amount, vestingEnd);
+        }
+    }
+
+    function addInstantAirdrops(address[] calldata _recipients, uint256 _amount)
+        external
+        onlyOwner
+    {
+        require(
+            _recipients.length >= 1,
+            "XGT-REWARD-CHEST-NEED-AT-LEAST-ONE-ADDRESS"
+        );
+        for (uint256 i = 0; i < _recipients.length; i++) {
+            airdrops[_recipients[i]].push(
+                Airdrop(_amount, block.timestamp, true)
+            );
+            emit AirdropAdded(_recipients[i], _amount, block.timestamp);
+            require(
+                rewardChest.sendInstantClaim(_recipients[i], _amount),
+                "XGT-REWARD-CHEST-INSTANT-CLAIM-FAILED"
+            );
+            emit AirdropClaimed(_recipients[i], _amount);
         }
     }
 
@@ -67,7 +88,7 @@ contract AirdropModule is Initializable, OwnableUpgradeable {
         return total;
     }
 
-    function claimModule(address _recipient) external {
+    function claimModule(address _recipient) external onlyRewardChest {
         if (airdrops[_recipient].length >= 1) {
             for (uint256 i = 0; i < airdrops[_recipient].length; i++) {
                 if (

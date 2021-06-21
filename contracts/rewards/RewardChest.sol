@@ -122,6 +122,18 @@ contract RewardChest is OwnableUpgradeable, EIP712MetaTransaction {
         return withdrawAmount;
     }
 
+    function sendInstantClaim(address _user, uint256 _amount)
+        external
+        onlyModule
+        returns (bool)
+    {
+        require(
+            xgt.transfer(_user, _amount),
+            "XGT-REWARD-CHEST-INSTANT-CLAIM-TRANSFER-FAILED"
+        );
+        return true;
+    }
+
     function getClaimableBalance(address _user)
         external
         view

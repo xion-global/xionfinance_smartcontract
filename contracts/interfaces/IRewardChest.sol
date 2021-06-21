@@ -6,5 +6,9 @@ interface IRewardChest {
         external
         returns (bool);
 
+    function sendInstantClaim(address _user, uint256 _amount)
+        external
+        returns (bool);
+
     function owner() external view returns (address);
 }
