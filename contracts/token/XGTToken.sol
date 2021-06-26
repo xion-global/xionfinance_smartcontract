@@ -19,18 +19,22 @@ contract XGTToken is ERC20 {
     uint256 public constant TEAM_AND_ADVISORS = 50000000 * 10**18; // 50 million
     uint256 public constant MARKET_MAKING = 50000000 * 10**18; // 50 million
 
-    constructor(
+    constructor() ERC20("Xion Global Token", "XGT") {}
+
+    function initialize(
         address _vestingSpawner,
         address _rewardChest,
         address _marketMakingAddress,
         uint256 _marketMakingAmount
-    ) ERC20("Xion Global Token", "XGT") {
+    ) external {
+        require(totalSupply() == 0, "XGT-ALREADY-INITIALIZED");
         require(_vestingSpawner != address(0), "XGT-INVALID-VESTING-ADDRESS");
         require(_rewardChest != address(0), "XGT-INVALID-REWARD-CHEST-ADDRESS");
         require(
             _marketMakingAddress != address(0),
             "XGT-INVALID-MARKET-MAKING-MULTISIG-ADDRESS"
         );
+        uint256 amountInVesting = 0;
         IVestingSpawner vestingSpawner = IVestingSpawner(_vestingSpawner);
 
         // General token utility allocations
@@ -39,18 +43,22 @@ contract XGTToken is ERC20 {
         _mint(address(this), XION_RESERVE);
         _approve(address(this), _vestingSpawner, XION_RESERVE);
         vestingSpawner.fundSpawner(0, XION_RESERVE);
+        amountInVesting = amountInVesting.add(XION_RESERVE);
 
         _mint(address(this), FOUNDERS_RESERVE);
         _approve(address(this), _vestingSpawner, FOUNDERS_RESERVE);
         vestingSpawner.fundSpawner(1, FOUNDERS_RESERVE);
+        amountInVesting = amountInVesting.add(FOUNDERS_RESERVE);
 
         _mint(address(this), TEAM_AND_ADVISORS);
         _approve(address(this), _vestingSpawner, TEAM_AND_ADVISORS);
         vestingSpawner.fundSpawner(2, TEAM_AND_ADVISORS);
+        amountInVesting = amountInVesting.add(TEAM_AND_ADVISORS);
 
         _mint(address(this), COMMUNITY_AND_AIRDROPS);
         _approve(address(this), _vestingSpawner, COMMUNITY_AND_AIRDROPS);
         vestingSpawner.fundSpawner(3, COMMUNITY_AND_AIRDROPS);
+        amountInVesting = amountInVesting.add(COMMUNITY_AND_AIRDROPS);
 
         uint256 marketMakingAmountVested =
             MARKET_MAKING.sub(_marketMakingAmount);
@@ -58,8 +66,13 @@ contract XGTToken is ERC20 {
         _mint(address(this), marketMakingAmountVested);
         _approve(address(this), _vestingSpawner, marketMakingAmountVested);
         vestingSpawner.fundSpawner(4, marketMakingAmountVested);
+        amountInVesting = amountInVesting.add(marketMakingAmountVested);
 
         require(totalSupply() == MAX_SUPPLY, "XGT-INVALID-SUPPLY");
+        require(
+            balanceOf(_vestingSpawner) == amountInVesting,
+            "XGT-UNSUCCESSFUL-VESTING"
+        );
     }
 
     // Safety override
