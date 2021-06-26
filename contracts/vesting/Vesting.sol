@@ -51,7 +51,10 @@ contract Vesting is Ownable, ReentrancyGuard {
 
         if (currentEpoch > epochsCliff + epochsVesting + 1) {
             lastClaimedEpoch = epochsCliff + epochsVesting;
-            xgt.transfer(owner(), xgt.balanceOf(address(this)));
+            require(
+                xgt.transfer(owner(), xgt.balanceOf(address(this))),
+                "VESTING-TRANSFER-FAILED"
+            );
             return;
         }
 
@@ -63,7 +66,10 @@ contract Vesting is Ownable, ReentrancyGuard {
         }
         lastClaimedEpoch = currentEpoch - 1;
         if (claimBalance > 0) {
-            xgt.transfer(owner(), claimBalance);
+            require(
+                xgt.transfer(owner(), claimBalance),
+                "VESTING-TRASNFER-FAILED"
+            );
         }
     }
 

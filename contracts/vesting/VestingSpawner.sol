@@ -39,7 +39,14 @@ contract VestingSpawner is Ownable {
         uint256 epochsVesting
     );
 
-    constructor(address xgtToken, address vestingImplementation) {
+    function initialize(address xgtToken, address vestingImplementation)
+        external
+        onlyOwner
+    {
+        require(
+            address(xgt) == address(0),
+            "VESTING-SPAWNER-ALREADY-INITIALIZED"
+        );
         xgt = IERC20(xgtToken);
         implementation = vestingImplementation;
     }
@@ -124,7 +131,10 @@ contract VestingSpawner is Ownable {
 
         address newVestingContract = Clones.clone(implementation);
         vestingContracts[_recipient] = newVestingContract;
-        xgt.transfer(newVestingContract, _amount);
+        require(
+            xgt.transfer(newVestingContract, _amount),
+            "VESTING-SPAWNER-TRANSFER-FAILED"
+        );
         Vesting(newVestingContract).initialize(
             _recipient,
             address(xgt),

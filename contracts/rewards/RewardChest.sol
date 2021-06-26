@@ -112,7 +112,10 @@ contract RewardChest is OwnableUpgradeable, EIP712MetaTransaction {
         userBalance[msgSender()] = 0;
 
         if (withdrawAmount > 0) {
-            xgt.approve(xgtBridge[_chainId], withdrawAmount);
+            require(
+                xgt.approve(xgtBridge[_chainId], withdrawAmount),
+                "XGT-REWARD-CHEST-APPROVE-FAILED"
+            );
             IXGTTokenHomeBridge(xgtBridge[_chainId]).outgoingTransfer(
                 withdrawAmount,
                 msgSender()

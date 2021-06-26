@@ -99,7 +99,11 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         emit PoolAdded(_address, _networkID, _bonusAPY);
     }
 
-    function togglePool(uint256 _id, bool _active) external onlyOwner {
+    function togglePool(uint256 _id, bool _active)
+        external
+        onlyOwner
+        validPool(_id)
+    {
         pools[_id].active = _active;
         emit PoolActiveStateToggled(
             pools[_id].addr,
@@ -111,6 +115,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
     function changePoolBonusAPY(uint256 _id, uint256 _bonusAPY)
         external
         onlyOwner
+        validPool(_id)
     {
         pools[_id].bonusAPY = _bonusAPY;
         emit PoolBonusAPYChanged(
@@ -129,7 +134,12 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 _id,
         uint256 _xgtPerLP,
         uint256 _blocknumber
-    ) external onlyIndexer {
+    ) external onlyIndexer validPool(_id) {
+        require(
+            _blocknumber >
+                pools[_id].prices[pools[_id].prices.length - 1].blocknumber,
+            "XGT-REWARD-CHEST-INVALID-BLOCKNUMBER"
+        );
         // append latest entry to array
         pools[_id].prices.push(PriceEntry(_xgtPerLP, _blocknumber));
 
@@ -192,7 +202,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 _duration,
         uint256 _boost,
         uint256 _validForUsers
-    ) external onlyOwner {
+    ) external onlyOwner validPool(_id) {
         uint256 maxUsers = _validForUsers;
         if (_validForUsers == 0) {
             maxUsers = 2**256 - 1;
@@ -244,7 +254,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 _start,
         uint256 _end,
         uint256 _boost
-    ) external onlyOwner {
+    ) external onlyOwner validPool(_id) {
         for (uint256 i = 0; i < _users.length; i++) {
             userBoosts[_users[i]].push(Boost(_id, _start, _end, _boost));
         }
@@ -286,7 +296,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 _start,
         uint256 _end,
         uint256 _boost
-    ) external onlyOwner {
+    ) external onlyOwner validPool(_id) {
         poolBoosts.push(Boost(_id, _start, _end, _boost));
     }
 
@@ -331,68 +341,80 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256 total = 0;
         uint256 last = userLastClaimedPool[_user];
         for (uint256 i = 1; i <= currentPoolID; i++) {
-            uint256 thisPoolTotal = 0;
-            uint256 poolTokens = userPoolTokens[_user][i];
-            uint256 lenPrices = pools[i].prices.length;
-            if (pools[i].prices[lenPrices - 1].blocknumber <= last) {
-                thisPoolTotal = thisPoolTotal.add(
-                    (
+            if (pools[i].active) {
+                uint256 thisPoolTotal = 0;
+                uint256 poolTokens = userPoolTokens[_user][i];
+                uint256 lenPrices = pools[i].prices.length;
+                if (pools[i].prices[lenPrices - 1].blocknumber <= last) {
+                    thisPoolTotal = thisPoolTotal.add(
                         (
                             (
-                                poolTokens.mul(
-                                    pools[i].prices[lenPrices - 1].xgtPerLPToken
+                                (
+                                    poolTokens.mul(
+                                        pools[i].prices[lenPrices - 1]
+                                            .xgtPerLPToken
+                                    )
                                 )
+                                    .mul((block.timestamp.sub(last)))
                             )
-                                .mul((block.timestamp.sub(last)))
+                                .div(YEAR_IN_SECONDS)
                         )
-                            .div(YEAR_IN_SECONDS)
-                    )
-                        .div(10**18)
-                );
-            } else {
-                for (uint256 j = 0; j < lenPrices; j++) {
-                    if (j == lenPrices - 1) {
-                        uint256 diff = pools[i].prices[j].blocknumber.sub(last);
-                        thisPoolTotal = thisPoolTotal.add(
-                            (
+                            .div(10**18)
+                    );
+                } else {
+                    for (uint256 j = 0; j < lenPrices - 1; j++) {
+                        // if this price is the last one in the array
+                        if (j == lenPrices - 1) {
+                            uint256 diff =
+                                pools[i].prices[j].blocknumber.sub(last);
+                            thisPoolTotal = thisPoolTotal.add(
                                 (
                                     (
-                                        poolTokens.mul(
-                                            pools[i].prices[j].xgtPerLPToken
+                                        (
+                                            poolTokens.mul(
+                                                pools[i].prices[j].xgtPerLPToken
+                                            )
                                         )
+                                            .mul(diff)
                                     )
-                                        .mul(diff)
+                                        .div(YEAR_IN_SECONDS)
                                 )
-                                    .div(YEAR_IN_SECONDS)
-                            )
-                                .div(10**18)
-                        );
-                        last = last.add(diff);
-                    } else {
-                        thisPoolTotal = thisPoolTotal.add(
-                            (
-                                (
+                                    .div(10**18)
+                            );
+                            last = last.add(diff);
+                        } else {
+                            // if this price is in the middle of the array
+                            // and the last claim time isn't greater than that
+                            if (last < pools[i].prices[j].blocknumber) {
+                                uint256 endOfPeriod =
+                                    pools[i].prices[j + 1].blocknumber;
+                                thisPoolTotal = thisPoolTotal.add(
                                     (
-                                        poolTokens.mul(
-                                            pools[i].prices[lenPrices - 1]
-                                                .xgtPerLPToken
+                                        (
+                                            (
+                                                poolTokens.mul(
+                                                    pools[i].prices[j]
+                                                        .xgtPerLPToken
+                                                )
+                                            )
+                                                .mul((endOfPeriod.sub(last)))
                                         )
+                                            .div(YEAR_IN_SECONDS)
                                     )
-                                        .mul((block.timestamp.sub(last)))
-                                )
-                                    .div(YEAR_IN_SECONDS)
-                            )
-                                .div(10**18)
-                        );
+                                        .div(10**18)
+                                );
+                                last = endOfPeriod + 1;
+                            }
+                        }
                     }
                 }
+                uint256 boosts = _calculateBoosts(i, _user);
+                total = total.add(
+                    (thisPoolTotal.mul(2))
+                        .mul(baseAPYPools.add(pools[i].bonusAPY).add(boosts))
+                        .div(10000)
+                );
             }
-            uint256 boosts = _calculateBoosts(i, _user);
-            total = total.add(
-                (thisPoolTotal.mul(2))
-                    .mul(baseAPYPools.add(pools[i].bonusAPY).add(boosts))
-                    .div(10000)
-            );
         }
         return total;
     }
@@ -474,6 +496,14 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         require(
             msg.sender == address(rewardChest),
             "XGT-REWARD-CHEST-NOT-AUTHORIZED"
+        );
+        _;
+    }
+
+    modifier validPool(uint256 _id) {
+        require(
+            pools[_id].addr != address(0),
+            "XGT-REWARD-CHEST-POOL-DOES-NOT-EXIST"
         );
         _;
     }
