@@ -32,8 +32,12 @@
     "truffle-source-verify": "0.0.5"
   },
   "devDependencies": {
+    "@nomiclabs/hardhat-truffle5": "^2.0.0",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/test-helpers": "^0.5.11",
     "@truffle/contract": "^4.3.5",
     "@truffle/hdwallet-provider": "^1.2.1",
+    "hardhat": "^2.4.1",
     "prettier": "^2.2.1",
     "prettier-plugin-solidity": "^1.0.0-beta.3"
   }

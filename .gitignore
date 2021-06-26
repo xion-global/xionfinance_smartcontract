@@ -1,4 +1,6 @@
 .openzeppelin
 build/
+artifacts/
+cache/
 bin/
 node_modules
