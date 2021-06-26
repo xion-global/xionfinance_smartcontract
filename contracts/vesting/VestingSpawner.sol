@@ -39,27 +39,22 @@ contract VestingSpawner is Ownable {
         uint256 epochsVesting
     );
 
-    function initialize(address xgtToken, address vestingImplementation)
-        external
-        onlyOwner
-    {
-        require(
-            address(xgt) == address(0),
-            "VESTING-SPAWNER-ALREADY-INITIALIZED"
-        );
-        xgt = IERC20(xgtToken);
-        implementation = vestingImplementation;
+    constructor(address _vestingImplementation, address _token) {
+        implementation = _vestingImplementation;
+        xgt = IERC20(_token);
     }
 
     function fundSpawner(uint256 _allocation, uint256 _amount) external {
         require(
-            _allocation >= 0 && _allocation <= 3,
+            _allocation >= 0 && _allocation <= 4,
             "VESTING-SPAWNER-INVALID-ALLOCATION"
         );
+
         require(
             xgt.transferFrom(msg.sender, address(this), _amount),
             "VESTING-SPAWNER-TRANSFER-FAILED"
         );
+
         if (Allocation(_allocation) == Allocation.Reserve) {
             reserveTokensLeft = reserveTokensLeft.add(_amount);
         } else if (Allocation(_allocation) == Allocation.Founders) {
@@ -131,6 +126,19 @@ contract VestingSpawner is Ownable {
 
         address newVestingContract = Clones.clone(implementation);
         vestingContracts[_recipient] = newVestingContract;
+
+        // Special Case for IDO where 50% is paid out instantly
+        // and the rest is vested for 2 weeks
+        bool frontHalf = false;
+        if (
+            _allocation == 0 &&
+            _epochDuration == EPOCH_DURATION_WEEK &&
+            _epochsVesting == 2 &&
+            _epochsCliff == 1
+        ) {
+            frontHalf = true;
+        }
+
         require(
             xgt.transfer(newVestingContract, _amount),
             "VESTING-SPAWNER-TRANSFER-FAILED"
@@ -142,7 +150,8 @@ contract VestingSpawner is Ownable {
             _epochDuration,
             _epochsCliff,
             _epochsVesting,
-            _amount
+            _amount,
+            frontHalf
         );
         emit VestingContractSpawned(
             _recipient,
