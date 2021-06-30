@@ -16,6 +16,13 @@ module.exports = {
       network_id: 4,
       skipDryRun: true,
     },
+    goerli: {
+      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://goerli.infura.io/v3/" + process.env.INFURA_KEY),
+      gasPrice: 5 * 1000000000,
+      gasLimit: 10000000,
+      network_id: 5,
+      skipDryRun: true,
+    },
     kovan: {
       provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://kovan.infura.io/v3/" + process.env.INFURA_KEY),
       gasPrice: 2.5 * 1000000000,

@@ -10,7 +10,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRewardModule.sol";
 import "../interfaces/IXGTTokenHomeBridge.sol";
 
-contract RewardChest is OwnableUpgradeable, EIP712MetaTransaction {
+contract RewardChest is
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    EIP712MetaTransaction
+{
     using SafeMathUpgradeable for uint256;
 
     IERC20 public xgt;
@@ -71,7 +75,7 @@ contract RewardChest is OwnableUpgradeable, EIP712MetaTransaction {
         return true;
     }
 
-    function claim() external returns (uint256 withdrawAmount) {
+    function claim() external nonReentrant returns (uint256 withdrawAmount) {
         if (paused) {
             return 0;
         }
@@ -93,6 +97,7 @@ contract RewardChest is OwnableUpgradeable, EIP712MetaTransaction {
 
     function claimToNetwork(uint256 _chainId)
         external
+        nonReentrant
         returns (uint256 withdrawAmount)
     {
         if (paused) {
