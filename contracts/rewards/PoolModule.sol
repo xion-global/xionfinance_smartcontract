@@ -160,7 +160,12 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         uint256[] calldata _ids,
         uint256[] calldata _amount
     ) external onlyIndexer {
-        // claim for user
+        require(
+            rewardChest.addToBalance(_user, getClaimable(_user)),
+            "XGT-REWARD-MODULE-FAILED-TO-ADD-TO-BALANCE"
+        );
+        userLastClaimedPool[_user] = block.timestamp;
+
         require(
             _ids.length == _amount.length,
             "XGT-REWARD-CHEST-ARRAY-LENGTHS-DONT-MATCH"
@@ -362,7 +367,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                             .div(10**18)
                     );
                 } else {
-                    for (uint256 j = 0; j < lenPrices - 1; j++) {
+                    for (uint256 j = 0; j < lenPrices; j++) {
                         // if this price is the last one in the array
                         if (j == lenPrices - 1) {
                             uint256 diff =
@@ -387,7 +392,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                             // and the last claim time isn't greater than that
                             if (last < pools[i].prices[j].blocknumber) {
                                 uint256 endOfPeriod =
-                                    pools[i].prices[j + 1].blocknumber;
+                                    pools[i].prices[j].blocknumber;
                                 thisPoolTotal = thisPoolTotal.add(
                                     (
                                         (
@@ -403,7 +408,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                                     )
                                         .div(10**18)
                                 );
-                                last = endOfPeriod + 1;
+                                last = endOfPeriod;
                             }
                         }
                     }
