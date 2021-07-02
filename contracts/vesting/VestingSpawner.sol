@@ -12,7 +12,8 @@ contract VestingSpawner is Ownable {
 
     IERC20 public xgt;
     address public implementation;
-    mapping(address => address) public vestingContracts;
+    mapping(address => address) public vestingContractOfRecipient;
+    address[] public vestingContracts;
 
     uint256 public constant EPOCH_DURATION_WEEK = 24 * 60 * 60 * 7;
     uint256 public constant EPOCH_DURATION_MONTH = (365 * 24 * 60 * 60) / 12;
@@ -78,7 +79,7 @@ contract VestingSpawner is Ownable {
         uint256 _allocation
     ) external onlyOwner {
         require(
-            vestingContracts[_recipient] == address(0),
+            vestingContractOfRecipient[_recipient] == address(0),
             "VESTING-SPAWNER-RECIPIENT-ALREADY-EXISTS"
         );
 
@@ -125,7 +126,8 @@ contract VestingSpawner is Ownable {
         }
 
         address newVestingContract = Clones.clone(implementation);
-        vestingContracts[_recipient] = newVestingContract;
+        vestingContractOfRecipient[_recipient] = newVestingContract;
+        vestingContracts.push(newVestingContract);
 
         // Special Case for IDO where 50% is paid out instantly
         // and the rest is vested for 2 weeks
@@ -161,5 +163,14 @@ contract VestingSpawner is Ownable {
             _epochsCliff,
             _epochsVesting
         );
+    }
+
+    function multiClaim(uint256 _from, uint256 _to) external {
+        if (_to == 0) {
+            _to = vestingContracts.length - 1;
+        }
+        for (uint256 i = _from; i <= _to; i++) {
+            Vesting(vestingContracts[i]).claim();
+        }
     }
 }

@@ -20,7 +20,7 @@ contract XGTMigrator {
     address public newPool;
 
     uint256 exchangeRate = 200;
-    uint256 startTime = 0;
+    uint256 startTime = 0; // TODO set time correctly after it's known
 
     constructor(
         address _oldToken,
