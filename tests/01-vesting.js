@@ -67,7 +67,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        let vestingAddr = await vestingSpawnerInstance.vestingContracts(founders[0]);
+        let vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(founders[0]);
         let vestingInstance = await vesting.at(vestingAddr);
 
         await expectRevert(vestingInstance.claim({
@@ -140,7 +140,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(founders[1]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(founders[1]);
         vestingInstance = await vesting.at(vestingAddr);
 
         await expectRevert(vestingInstance.claim({
@@ -204,7 +204,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(founders[2]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(founders[2]);
         vestingInstance = await vesting.at(vestingAddr);
 
         await expectRevert(vestingInstance.claim({
@@ -267,7 +267,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(investors[0]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(investors[0]);
         vestingInstance = await vesting.at(vestingAddr);
 
         await expectRevert(vestingInstance.claim({
@@ -328,7 +328,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(investors[1]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(investors[1]);
         vestingInstance = await vesting.at(vestingAddr);
 
         await expectRevert(vestingInstance.claim({
@@ -398,7 +398,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(investors[2]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(investors[2]);
         vestingInstance = await vesting.at(vestingAddr);
 
         vestingBalance = await xgtInstance.balanceOf(vestingAddr);
@@ -455,7 +455,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(founders[0]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(founders[0]);
         vestingInstance = await vesting.at(vestingAddr);
 
         await expectRevert(vestingInstance.claim({
@@ -525,7 +525,7 @@ contract('Vesting', async (accounts) => {
             from: admin
         });
 
-        vestingAddr = await vestingSpawnerInstance.vestingContracts(investors[2]);
+        vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(investors[2]);
         vestingInstance = await vesting.at(vestingAddr);
 
         vestingBalance = await xgtInstance.balanceOf(vestingAddr);
@@ -616,7 +616,7 @@ contract('Vesting', async (accounts) => {
         //     from: admin
         // });
 
-        // vestingAddr = await vestingSpawnerInstance.vestingContracts(founders[0]);
+        // vestingAddr = await vestingSpawnerInstance.vestingContractOfRecipient(founders[0]);
         // vestingInstance = await vesting.at(vestingAddr);
 
         // await vestingInstance.claim({

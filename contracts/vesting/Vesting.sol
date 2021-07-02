@@ -89,12 +89,43 @@ contract Vesting is ReentrancyGuard {
         }
     }
 
-    function balance() public view returns (uint256) {
+    function balance() external view returns (uint256) {
         return xgt.balanceOf(address(this));
     }
 
     function getCurrentEpoch() public view returns (uint256) {
         if (block.timestamp < startTime) return 0;
         return (block.timestamp - startTime) / epochDuration + 1;
+    }
+
+    function hasClaim() external view returns (bool) {
+        // For IDO investors this is set to true because of their unique vesting schedule
+        if (frontHalf) {
+            if (block.timestamp < startTime) {
+                return false;
+            }
+            return true;
+        }
+
+        uint256 currentEpoch = getCurrentEpoch();
+        if (currentEpoch <= epochsCliff) {
+            return false;
+        }
+        currentEpoch = currentEpoch.sub(epochsCliff);
+
+        if (currentEpoch >= epochsVesting) {
+            return true;
+        }
+
+        if (currentEpoch > lastClaimedEpoch) {
+            uint256 claimBalance =
+                ((currentEpoch - lastClaimedEpoch) * totalDistributedBalance) /
+                    epochsVesting;
+            if (claimBalance > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

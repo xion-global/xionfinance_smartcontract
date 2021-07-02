@@ -173,4 +173,17 @@ contract VestingSpawner is Ownable {
             Vesting(vestingContracts[i]).claim();
         }
     }
+
+    function checkForClaims(uint256 _from, uint256 _to)
+        external
+        view
+        returns (bool)
+    {
+        for (uint256 i = _from; i <= _to; i++) {
+            if (Vesting(vestingContracts[i]).hasClaim()) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
