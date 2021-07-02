@@ -24,7 +24,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
 
     struct PriceEntry {
         uint256 xgtPerLPToken;
-        uint256 blocknumber;
+        uint256 timestamp;
     }
 
     struct Boost {
@@ -133,15 +133,16 @@ contract PoolModule is Initializable, OwnableUpgradeable {
     function setCurrentPoolPrice(
         uint256 _id,
         uint256 _xgtPerLP,
-        uint256 _blocknumber
+        uint256 _timestamp
     ) external onlyIndexer validPool(_id) {
         require(
-            _blocknumber >
-                pools[_id].prices[pools[_id].prices.length - 1].blocknumber,
+            pools[_id].prices.length == 0 ||
+                _timestamp >
+                pools[_id].prices[pools[_id].prices.length - 1].timestamp,
             "XGT-REWARD-CHEST-INVALID-BLOCKNUMBER"
         );
         // append latest entry to array
-        pools[_id].prices.push(PriceEntry(_xgtPerLP, _blocknumber));
+        pools[_id].prices.push(PriceEntry(_xgtPerLP, _timestamp));
 
         // max length is 10, so if it's 11 then remove the last
         if (pools[_id].prices.length == 11) {
@@ -171,18 +172,18 @@ contract PoolModule is Initializable, OwnableUpgradeable {
             "XGT-REWARD-CHEST-ARRAY-LENGTHS-DONT-MATCH"
         );
         for (uint256 i = 0; i < _ids.length; i++) {
-            userPoolTokens[_user][i] = _amount[i];
+            userPoolTokens[_user][_ids[i]] = _amount[i];
             for (uint256 j = 0; j < promotionBoosts.length; j++) {
                 if (
                     promotionBoosts[j].active &&
-                    promotionBoosts[j].id == i &&
+                    promotionBoosts[j].id == _ids[i] &&
                     promotionBoosts[j].cutoff >= block.timestamp &&
                     promotionBoosts[j].users < promotionBoosts[j].maxUsers &&
                     !userUsedPromotionBoost[_user][j]
                 ) {
                     userBoosts[_user].push(
                         Boost(
-                            i,
+                            _ids[i],
                             block.timestamp,
                             block.timestamp.add(promotionBoosts[j].duration),
                             promotionBoosts[j].boost
@@ -331,7 +332,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
     }
 
     function getLatestPoolPrice(uint256 _id) external view returns (uint256) {
-        return pools[_id].prices[0].xgtPerLPToken;
+        return pools[_id].prices[pools[_id].prices.length - 1].xgtPerLPToken;
     }
 
     function claimModule(address _user) external onlyRewardChest {
@@ -344,71 +345,66 @@ contract PoolModule is Initializable, OwnableUpgradeable {
 
     function getClaimable(address _user) public view returns (uint256) {
         uint256 total = 0;
-        uint256 last = userLastClaimedPool[_user];
         for (uint256 i = 1; i <= currentPoolID; i++) {
-            if (pools[i].active) {
+            if (pools[i].active && userPoolTokens[_user][i] > 0) {
+                uint256 last = userLastClaimedPool[_user];
                 uint256 thisPoolTotal = 0;
-                uint256 poolTokens = userPoolTokens[_user][i];
                 uint256 lenPrices = pools[i].prices.length;
-                if (pools[i].prices[lenPrices - 1].blocknumber <= last) {
+                // if: there has been no new price after the users last claim
+                // we claim from last claiming time til now
+                if (pools[i].prices[lenPrices - 1].timestamp <= last) {
                     thisPoolTotal = thisPoolTotal.add(
-                        (
-                            (
-                                (
-                                    poolTokens.mul(
-                                        pools[i].prices[lenPrices - 1]
-                                            .xgtPerLPToken
-                                    )
-                                )
-                                    .mul((block.timestamp.sub(last)))
-                            )
-                                .div(YEAR_IN_SECONDS)
+                        _poolTokenCalculation(
+                            _user,
+                            i,
+                            lenPrices - 1,
+                            last,
+                            block.timestamp
                         )
-                            .div(10**18)
                     );
                 } else {
+                    // else: if there have been new prices after the last claim of the user
                     for (uint256 j = 0; j < lenPrices; j++) {
                         // if this price is the last one in the array
                         if (j == lenPrices - 1) {
-                            uint256 diff =
-                                pools[i].prices[j].blocknumber.sub(last);
-                            thisPoolTotal = thisPoolTotal.add(
-                                (
-                                    (
-                                        (
-                                            poolTokens.mul(
-                                                pools[i].prices[j].xgtPerLPToken
-                                            )
-                                        )
-                                            .mul(diff)
-                                    )
-                                        .div(YEAR_IN_SECONDS)
+                            // add the time between this last price and the last claim
+                            // with the old price of the time before this one AND
+                            // add the time since this price til now with the new price
+                            thisPoolTotal = thisPoolTotal
+                                .add(
+                                _poolTokenCalculation(
+                                    _user,
+                                    i,
+                                    j - 1,
+                                    last,
+                                    pools[i].prices[j].timestamp
                                 )
-                                    .div(10**18)
+                            )
+                                .add(
+                                _poolTokenCalculation(
+                                    _user,
+                                    i,
+                                    j,
+                                    pools[i].prices[j].timestamp,
+                                    block.timestamp
+                                )
                             );
-                            last = last.add(diff);
                         } else {
-                            // if this price is in the middle of the array
-                            // and the last claim time isn't greater than that
-                            if (last < pools[i].prices[j].blocknumber) {
-                                uint256 endOfPeriod =
-                                    pools[i].prices[j].blocknumber;
+                            // if the price is not the most current one, but the user
+                            // hasn't claimed since then:
+                            // take the time between last claim and this price
+                            // with the price at that time and update the last claim time
+                            if (last < pools[i].prices[j].timestamp) {
                                 thisPoolTotal = thisPoolTotal.add(
-                                    (
-                                        (
-                                            (
-                                                poolTokens.mul(
-                                                    pools[i].prices[j]
-                                                        .xgtPerLPToken
-                                                )
-                                            )
-                                                .mul((endOfPeriod.sub(last)))
-                                        )
-                                            .div(YEAR_IN_SECONDS)
+                                    _poolTokenCalculation(
+                                        _user,
+                                        i,
+                                        j - 1,
+                                        last,
+                                        pools[i].prices[j].timestamp
                                     )
-                                        .div(10**18)
                                 );
-                                last = endOfPeriod;
+                                last = pools[i].prices[j].timestamp;
                             }
                         }
                     }
@@ -422,6 +418,28 @@ contract PoolModule is Initializable, OwnableUpgradeable {
             }
         }
         return total;
+    }
+
+    function _poolTokenCalculation(
+        address _user,
+        uint256 _pool,
+        uint256 _priceIndex,
+        uint256 _from,
+        uint256 _to
+    ) internal view returns (uint256) {
+        return
+            (
+                (
+                    (
+                        userPoolTokens[_user][_pool].mul(
+                            pools[_pool].prices[_priceIndex].xgtPerLPToken
+                        )
+                    )
+                        .mul((_to.sub(_from)))
+                )
+                    .div(YEAR_IN_SECONDS)
+            )
+                .div(10**18);
     }
 
     function _calculateBoosts(uint256 _id, address _user)
@@ -461,7 +479,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
         for (uint256 j = 0; j < userBoosts[_user].length; j++) {
             if (
                 (userBoosts[_user][j].id == 0 ||
-                    userBoosts[_user][j].id == j) &&
+                    userBoosts[_user][j].id == _id) &&
                 userBoosts[_user][j].end > last
             ) {
                 // default: apply bonus from last time claimed until now
