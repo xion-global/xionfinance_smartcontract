@@ -10,6 +10,8 @@ import "../interfaces/IUniswapV2Router02.sol";
 contract XGTMigrator {
     using SafeMath for uint256;
 
+    mapping(address => bool) public controllers;
+
     ERC20Burnable public oldToken;
     IERC20 public newToken;
 
@@ -28,7 +30,8 @@ contract XGTMigrator {
         address[] memory _pools,
         address[] memory _routers,
         address _newRouter,
-        address _newPool
+        address _newPool,
+        address _controller
     ) {
         oldToken = ERC20Burnable(_oldToken);
         newToken = IERC20(_newToken);
@@ -43,6 +46,14 @@ contract XGTMigrator {
         }
         newRouter = IUniswapV2Router02(_newRouter);
         newPool = _newPool;
+        controllers[_controller] = true;
+    }
+
+    function toggleControllers(address _controller, bool _state)
+        external
+        onlyController
+    {
+        controllers[_controller] = _state;
     }
 
     function fundContract(uint256 _amount) external {
@@ -52,11 +63,39 @@ contract XGTMigrator {
         );
     }
 
+    // function any left overv2 token after migration to get it back
+    // into the vesting contract
+    function defundContract(uint256 _amount) external onlyController {
+        require(
+            newToken.transfer(msg.sender, _amount),
+            "MIGRATOR-TRANSFER-FAILED"
+        );
+    }
+
+    // if any base currency gets stuck we can free it
+    function sweepBase(uint256 _amount) external onlyController {
+        msg.sender.transfer(_amount);
+    }
+
     fallback() external payable {}
 
     receive() external payable {}
 
     function migrate(bool _migrateLP) external {
+        if (_migrateLP) {
+            _migrateWithLP();
+        } else {
+            _migrateOnlyXGT(msg.sender, msg.sender);
+        }
+    }
+
+    function migrateTo(address _receiver) external {
+        _migrateOnlyXGT(msg.sender, _receiver);
+    }
+
+    function migrateFor(address _from) external onlyController {}
+
+    function _migrateWithLP() internal {
         require(block.timestamp >= startTime, "MIGRATOR-NOT-OPENED-YET");
         uint256 finalReturnXGT = 0;
         uint256 finalReturnBase = 0;
@@ -64,40 +103,33 @@ contract XGTMigrator {
         // LIQUIDITY POOLS
         uint256 XGTFromLPs = 0;
         uint256 baseFromLPs = 0;
-        if (_migrateLP) {
-            for (uint256 i = 0; i < pools.length; i++) {
-                // check if there are lp tokens with allowance for this contract
-                uint256 lpTokens =
-                    pools[i].allowance(msg.sender, address(this));
-                if (lpTokens > 0) {
-                    // check the balance (take balance if lower)
-                    uint256 lpBalance = pools[i].balanceOf(msg.sender);
-                    if (lpBalance > lpTokens) {
-                        lpTokens = lpBalance;
-                    }
-                    // transfer the lp tokens here
-                    require(
-                        pools[i].transferFrom(
-                            msg.sender,
-                            address(this),
-                            lpTokens
-                        ),
-                        "MIGRATOR-LP-TOKEN-TRANSFER-FAILED"
-                    );
-                    // remove liquidity from the pool
-                    (uint256 oldXGT, uint256 baseToken) =
-                        routers[address(pools[i])].removeLiquidityETH(
-                            address(oldToken),
-                            lpTokens,
-                            0,
-                            0,
-                            address(this),
-                            1704063599
-                        );
-                    // store resulting xgt + base token
-                    XGTFromLPs = XGTFromLPs.add(oldXGT);
-                    baseFromLPs = baseFromLPs.add(baseToken);
+        for (uint256 i = 0; i < pools.length; i++) {
+            // check if there are lp tokens with allowance for this contract
+            uint256 lpTokens = pools[i].allowance(msg.sender, address(this));
+            if (lpTokens > 0) {
+                // check the balance (take balance if lower)
+                uint256 lpBalance = pools[i].balanceOf(msg.sender);
+                if (lpBalance > lpTokens) {
+                    lpTokens = lpBalance;
                 }
+                // transfer the lp tokens here
+                require(
+                    pools[i].transferFrom(msg.sender, address(this), lpTokens),
+                    "MIGRATOR-LP-TOKEN-TRANSFER-FAILED"
+                );
+                // remove liquidity from the pool
+                (uint256 oldXGT, uint256 baseToken) =
+                    routers[address(pools[i])].removeLiquidityETH(
+                        address(oldToken),
+                        lpTokens,
+                        0,
+                        0,
+                        address(this),
+                        1704063599
+                    );
+                // store resulting xgt + base token
+                XGTFromLPs = XGTFromLPs.add(oldXGT);
+                baseFromLPs = baseFromLPs.add(baseToken);
             }
         }
 
@@ -133,7 +165,7 @@ contract XGTMigrator {
         }
 
         // if there were funds from the lp
-        if (baseFromLPs > 0 && _migrateLP) {
+        if (baseFromLPs > 0) {
             // calc
             uint256 reserveA = newToken.balanceOf(newPool);
             uint256 reserveB =
@@ -170,5 +202,37 @@ contract XGTMigrator {
         if (finalReturnBase > 0) {
             msg.sender.transfer(finalReturnBase);
         }
+    }
+
+    function _migrateOnlyXGT(address _from, address _to) internal {
+        require(block.timestamp >= startTime, "MIGRATOR-NOT-OPENED-YET");
+        uint256 finalReturnXGT = 0;
+
+        // XGT TOKEN
+        // Check whether user has XGT v1
+        uint256 migrationAmountXGT = oldToken.balanceOf(_from);
+
+        // If user has v1, transfer them here
+        if (migrationAmountXGT > 0) {
+            require(
+                oldToken.transferFrom(_from, address(this), migrationAmountXGT),
+                "MIGRATOR-TRANSFER-OLD-TOKEN-FAILED"
+            );
+        } else {
+            return;
+        }
+
+        oldToken.burn(migrationAmountXGT);
+        finalReturnXGT = (migrationAmountXGT.mul(exchangeRate)).div(1000);
+
+        require(
+            newToken.transfer(_to, finalReturnXGT),
+            "MIGRATOR-TRANSFER-NEW-TOKEN-FAILED"
+        );
+    }
+
+    modifier onlyController() {
+        require(controllers[msg.sender], "not controller");
+        _;
     }
 }
