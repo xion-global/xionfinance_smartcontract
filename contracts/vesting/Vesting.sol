@@ -4,6 +4,7 @@ pragma solidity ^0.7.6;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "../interfaces/IUniswapFactory.sol";
 
 contract Vesting is ReentrancyGuard {
     using SafeMath for uint256;
@@ -15,7 +16,8 @@ contract Vesting is ReentrancyGuard {
     uint256 public epochsCliff;
     uint256 public epochsVesting;
 
-    IERC20 private xgt;
+    IERC20 public xgt;
+    address public listingFactory;
 
     uint256 public lastClaimedEpoch;
     uint256 public totalDistributedBalance;
@@ -50,6 +52,10 @@ contract Vesting is ReentrancyGuard {
         // For IDO investors this is set to true because of their unique vesting schedule
         if (frontHalf) {
             require(block.timestamp >= startTime, "VESTING-NOT-STARTED-YET");
+            require(
+                tokenHasBeenListed(),
+                "VESTING-INITIAL-PAIR-NOT-DEPLOYED-YET"
+            );
             uint256 halfBalance = totalDistributedBalance.div(2);
             require(
                 xgt.transfer(recipient, halfBalance),
@@ -101,7 +107,7 @@ contract Vesting is ReentrancyGuard {
     function hasClaim() external view returns (bool) {
         // For IDO investors this is set to true because of their unique vesting schedule
         if (frontHalf) {
-            if (block.timestamp < startTime) {
+            if (block.timestamp < startTime || !tokenHasBeenListed()) {
                 return false;
             }
             return true;
@@ -126,6 +132,27 @@ contract Vesting is ReentrancyGuard {
             }
         }
 
+        return false;
+    }
+
+    // function which determines whether a certain pair has been listed
+    // and funded on a uniswap-v2-based dex. This is to ensure for the
+    // public sale distribution to only happen after this is the case
+    function tokenHasBeenListed() public view returns (bool) {
+        IUniswapV2Factory exchangeFactory =
+            IUniswapV2Factory(0xA818b4F111Ccac7AA31D0BCc0806d64F2E0737D7);
+        address tokenA = 0x9fB38C8f0f8Fb61855cf95E41cC607C98131e345;
+        address tokenB = 0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d;
+        address pair = exchangeFactory.getPair(tokenA, tokenB);
+        // if the factory returns the 0-address, it hasn't been created
+        if (pair == address(0)) {
+            return false;
+        }
+        // if it was created, only return true if the xgt balance is
+        // greater than zero == has been funded
+        if (xgt.balanceOf(pair) > 0) {
+            return true;
+        }
         return false;
     }
 }
