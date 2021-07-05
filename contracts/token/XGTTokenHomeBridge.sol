@@ -57,6 +57,7 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
         transferOwnership(_multiSig);
+        _pause();
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {
