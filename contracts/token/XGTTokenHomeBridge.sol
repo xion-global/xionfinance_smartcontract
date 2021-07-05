@@ -2,13 +2,14 @@
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTTokenBridge.sol";
 
-contract XGTTokenHomeBridge is Ownable, ReentrancyGuard {
+contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
 
     address public homeToken;
@@ -34,11 +35,13 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard {
         uint256 amount,
         uint256 nonce
     );
+    event Paused(address pauser, bool state);
 
     constructor(
         address _homeToken,
         address _outpostToken,
-        address _messageBridge
+        address _messageBridge,
+        address _multiSig
     ) {
         require(_homeToken != address(0), "XGT-INVALID-HOME-TOKEN-ADDRESS");
         require(
@@ -53,6 +56,7 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard {
         outpostToken = _outpostToken;
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
+        transferOwnership(_multiSig);
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {
@@ -76,19 +80,24 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard {
         );
         require(!incomingTransferExecuted[_nonce], "XGT-ALREADY-EXECUTED");
         incomingTransferExecuted[_nonce] = true;
-        ERC20(homeToken).transferFrom(address(this), _user, _amount);
+        IERC20(homeToken).transfer(_user, _amount);
         emit IncomingTransfer(_user, _amount, _nonce);
     }
 
-    function outgoingTransfer(uint256 _amount) external {
+    function outgoingTransfer(uint256 _amount)
+        external
+        nonReentrant
+        whenNotPaused
+    {
         outgoingTransfer(_amount, msg.sender);
     }
 
     function outgoingTransfer(uint256 _amount, address _recipient)
         public
         nonReentrant
+        whenNotPaused
     {
-        ERC20(homeToken).transferFrom(msg.sender, address(this), _amount);
+        IERC20(homeToken).transferFrom(msg.sender, address(this), _amount);
         bytes4 _methodSelector =
             IXGTTokenBridge(address(0)).incomingTransfer.selector;
         bytes memory data =
@@ -109,5 +118,13 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard {
             _amount,
             outgoingTransferNonce
         );
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

@@ -5,10 +5,11 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "../interfaces/IBridgeContract.sol";
 import "../interfaces/IXGTTokenBridge.sol";
 
-contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
+contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
 
     address public homeToken;
@@ -21,6 +22,10 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
 
     event BridgeAddressChanged(
         address newMessageBridgeAddress,
+        address performer
+    );
+    event HomeBridgeAddressChanged(
+        address newMHomeBridgeAddress,
         address performer
     );
     event IncomingTransfer(
@@ -38,7 +43,8 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
     constructor(
         address _homeToken,
         address _homeBridge,
-        address _messageBridge
+        address _messageBridge,
+        address _multiSig
     ) ERC20("Xion Global Token", "XGT") {
         require(_homeToken != address(0), "XGT-INVALID-HOME-TOKEN-ADDRESS");
         require(_homeBridge != address(0), "XGT-INVALID-HOME-BRIDGE-ADDRESS");
@@ -50,11 +56,17 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
         homeBridge = _homeBridge;
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
+        transferOwnership(_multiSig);
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {
         messageBridge = IBridgeContract(_newMessageBridge);
         emit BridgeAddressChanged(_newMessageBridge, msg.sender);
+    }
+
+    function changeHomeBridge(address _newHomeBridge) external onlyOwner {
+        homeBridge = _newHomeBridge;
+        emit HomeBridgeAddressChanged(_newHomeBridge, msg.sender);
     }
 
     function setCrossChainGas(uint256 _gasAmount) external onlyOwner {
@@ -77,13 +89,18 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
         emit IncomingTransfer(_user, _amount, _nonce);
     }
 
-    function outgoingTransfer(uint256 _amount) external {
+    function outgoingTransfer(uint256 _amount)
+        external
+        nonReentrant
+        whenNotPaused
+    {
         outgoingTransfer(_amount, msg.sender);
     }
 
     function outgoingTransfer(uint256 _amount, address _recipient)
         public
         nonReentrant
+        whenNotPaused
     {
         _burn(msg.sender, _amount);
         bytes4 _methodSelector =
@@ -122,5 +139,13 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard {
     ) public override returns (bool) {
         require(recipient != address(this), "XGT-CANT-TRANSFER-TO-CONTRACT");
         return super.transferFrom(sender, recipient, amount);
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }
