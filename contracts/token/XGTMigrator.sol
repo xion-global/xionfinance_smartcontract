@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "../interfaces/IUniswapV2Router02.sol";
+import "../interfaces/IRewardChest.sol";
 
 contract XGTMigrator {
     using SafeMath for uint256;
@@ -14,6 +15,7 @@ contract XGTMigrator {
 
     ERC20Burnable public oldToken;
     IERC20 public newToken;
+    IRewardChest public rewardChest;
 
     IUniswapV2Pair[] public pools;
     mapping(address => IUniswapV2Router02) public routers;
@@ -28,6 +30,7 @@ contract XGTMigrator {
     constructor(
         address _oldToken,
         address _newToken,
+        address _rewardChest,
         address[] memory _pools,
         address[] memory _routers,
         address _newRouter,
@@ -36,6 +39,7 @@ contract XGTMigrator {
     ) {
         oldToken = ERC20Burnable(_oldToken);
         newToken = IERC20(_newToken);
+        rewardChest = IRewardChest(_rewardChest);
         require(
             _pools.length == _routers.length,
             "MIGRATOR-INVALID-ARRAY-LENGTH"
@@ -55,22 +59,6 @@ contract XGTMigrator {
         onlyController
     {
         controllers[_controller] = _state;
-    }
-
-    function fundContract(uint256 _amount) external {
-        require(
-            newToken.transferFrom(msg.sender, address(this), _amount),
-            "MIGRATOR-TRANSFER-FAILED"
-        );
-    }
-
-    // function any left overv2 token after migration to get it back
-    // into the vesting contract
-    function defundContract(uint256 _amount) external onlyController {
-        require(
-            newToken.transfer(msg.sender, _amount),
-            "MIGRATOR-TRANSFER-FAILED"
-        );
     }
 
     // if any base currency gets stuck we can free it
@@ -94,7 +82,9 @@ contract XGTMigrator {
         _migrateOnlyXGT(msg.sender, _receiver);
     }
 
-    function migrateFor(address _from) external onlyController {}
+    function migrateFor(address _from) external onlyController {
+        _migrateOnlyXGT(_from, _from);
+    }
 
     function _migrateWithLP() internal {
         require(block.timestamp >= startTime, "MIGRATOR-NOT-OPENED-YET");
@@ -163,6 +153,7 @@ contract XGTMigrator {
         if (migrationAmountXGT > 0) {
             oldToken.burn(migrationAmountXGT);
             finalReturnXGT = (migrationAmountXGT.mul(exchangeRate)).div(1000);
+            rewardChest.sendInstantClaim(address(this), finalReturnXGT);
         }
 
         // if there were funds from the lp
@@ -231,10 +222,7 @@ contract XGTMigrator {
         oldToken.burn(migrationAmountXGT);
         finalReturnXGT = (migrationAmountXGT.mul(exchangeRate)).div(1000);
 
-        require(
-            newToken.transfer(_to, finalReturnXGT),
-            "MIGRATOR-TRANSFER-NEW-TOKEN-FAILED"
-        );
+        rewardChest.sendInstantClaim(_to, finalReturnXGT);
     }
 
     function setLastPriceV1(uint256 _lastPriceV1) external onlyController {

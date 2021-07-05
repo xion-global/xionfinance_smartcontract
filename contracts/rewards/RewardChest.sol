@@ -21,6 +21,7 @@ contract RewardChest is
 
     // maps chainid -> address to identify the right bridge for the chain
     mapping(uint256 => address) xgtBridge;
+    address public migrationContract;
 
     address[] public modules;
     mapping(address => bool) public isActiveModule;
@@ -66,8 +67,16 @@ contract RewardChest is
         xgtBridge[_chainId] = _bridge;
     }
 
+    function setMigrationContract(address _migrationContract)
+        external
+        onlyOwner
+    {
+        migrationContract = _migrationContract;
+    }
+
     function addToBalance(address _user, uint256 _amount)
         external
+        nonReentrant
         onlyModule
         returns (bool)
     {
@@ -132,7 +141,8 @@ contract RewardChest is
 
     function sendInstantClaim(address _user, uint256 _amount)
         external
-        onlyModule
+        nonReentrant
+        onlyModuleOrMigration
         returns (bool)
     {
         require(
@@ -163,6 +173,14 @@ contract RewardChest is
         require(
             isActiveModule[msgSender()],
             "XGT-REWARD-CHEST-NOT-AUTHORIZED-MODULE"
+        );
+        _;
+    }
+
+    modifier onlyModuleOrMigration() {
+        require(
+            isActiveModule[msgSender()] || msgSender() == migrationContract,
+            "XGT-REWARD-CHEST-NOT-AUTHORIZED-MODULE-OR-MIGRATION"
         );
         _;
     }
