@@ -40,9 +40,14 @@ contract VestingSpawner is Ownable {
         uint256 epochsVesting
     );
 
-    constructor(address _vestingImplementation, address _token) {
+    constructor(
+        address _vestingImplementation,
+        address _token,
+        address _multiSig
+    ) {
         implementation = _vestingImplementation;
         xgt = IERC20(_token);
+        transferOwnership(_multiSig);
     }
 
     function fundSpawner(uint256 _allocation, uint256 _amount) external {
@@ -170,7 +175,9 @@ contract VestingSpawner is Ownable {
             _to = vestingContracts.length - 1;
         }
         for (uint256 i = _from; i <= _to; i++) {
-            Vesting(vestingContracts[i]).claim();
+            if (Vesting(vestingContracts[i]).hasClaim()) {
+                Vesting(vestingContracts[i]).claim();
+            }
         }
     }
 
@@ -179,6 +186,9 @@ contract VestingSpawner is Ownable {
         view
         returns (bool)
     {
+        if (_to == 0) {
+            _to = vestingContracts.length - 1;
+        }
         for (uint256 i = _from; i <= _to; i++) {
             if (Vesting(vestingContracts[i]).hasClaim()) {
                 return true;
