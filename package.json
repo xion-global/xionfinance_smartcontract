@@ -42,6 +42,7 @@
     "@truffle/hdwallet-provider": "^1.2.1",
     "ethers": "^5.4.1",
     "hardhat": "^2.4.1",
+    "hardhat-gas-reporter": "^1.0.4",
     "prettier": "^2.2.1",
     "prettier-plugin-solidity": "^1.0.0-beta.3"
   }

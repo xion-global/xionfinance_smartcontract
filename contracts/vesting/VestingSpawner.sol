@@ -196,4 +196,8 @@ contract VestingSpawner is Ownable {
         }
         return false;
     }
+
+    function getVestingContractsAmount() external view returns (uint256) {
+        return vestingContracts.length;
+    }
 }
