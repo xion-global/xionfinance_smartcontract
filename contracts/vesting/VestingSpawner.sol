@@ -82,7 +82,7 @@ contract VestingSpawner is Ownable {
         uint256 _epochsCliff,
         uint256 _epochsVesting,
         uint256 _allocation
-    ) external onlyOwner {
+    ) public onlyOwner {
         require(
             vestingContractOfRecipient[_recipient] == address(0),
             "VESTING-SPAWNER-RECIPIENT-ALREADY-EXISTS"
@@ -167,6 +167,42 @@ contract VestingSpawner is Ownable {
             _epochDuration,
             _epochsCliff,
             _epochsVesting
+        );
+    }
+
+    function addSeedInvestor(address _recipient, uint256 _amount) external {
+        spawnVestingContract(
+            _recipient,
+            _amount,
+            1625673600,
+            EPOCH_DURATION_MONTH,
+            3,
+            12,
+            0
+        );
+    }
+
+    function addPrivateInvestor(address _recipient, uint256 _amount) external {
+        spawnVestingContract(
+            _recipient,
+            _amount,
+            1625673600,
+            EPOCH_DURATION_MONTH,
+            2,
+            10,
+            0
+        );
+    }
+
+    function addPublicInvestor(address _recipient, uint256 _amount) external {
+        spawnVestingContract(
+            _recipient,
+            _amount,
+            1625673600,
+            EPOCH_DURATION_WEEK,
+            1,
+            2,
+            0
         );
     }
 
