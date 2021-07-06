@@ -140,10 +140,9 @@ contract Vesting is ReentrancyGuard {
     // public sale distribution to only happen after this is the case
     function tokenHasBeenListed() public view returns (bool) {
         IUniswapV2Factory exchangeFactory =
-            IUniswapV2Factory(0xA818b4F111Ccac7AA31D0BCc0806d64F2E0737D7);
-        address tokenA = 0x9fB38C8f0f8Fb61855cf95E41cC607C98131e345;
-        address tokenB = 0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d;
-        address pair = exchangeFactory.getPair(tokenA, tokenB);
+            IUniswapV2Factory(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73);
+        address wBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+        address pair = exchangeFactory.getPair(address(xgt), wBNB);
         // if the factory returns the 0-address, it hasn't been created
         if (pair == address(0)) {
             return false;
