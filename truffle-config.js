@@ -38,13 +38,18 @@ module.exports = {
     },
     xdai: {
       provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://xdai-archive.blockscout.com"),
-      gasPrice: 1 * 1000000000,
+      gasPrice: 20 * 1000000000,
       network_id: 100,
     },
     matic: {
       provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://rpc-mainnet.matic.network"),
       gasPrice: 1 * 1000000000,
       network_id: 137,
+    },
+    bsc: {
+      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://bsc-dataseed3.binance.org/"),
+      gasPrice: 5 * 1000000000,
+      network_id: 56,
     },
     mainnet: {
       provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY),
