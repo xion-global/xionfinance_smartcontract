@@ -25,7 +25,7 @@ contract XGTMigrator {
     address public newPool;
 
     uint256 public exchangeRate = 200;
-    uint256 public lastPriceV1 = 0;
+    uint256 public lastPriceV1 = 130000000000000000;
     uint256 public startTime = 1625673600;
 
     constructor(
