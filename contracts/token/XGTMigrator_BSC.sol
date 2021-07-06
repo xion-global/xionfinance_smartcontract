@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "../interfaces/IUniswapV2Router02.sol";
 import "../interfaces/IRewardChest.sol";
+import "../interfaces/IUniswapFactory.sol";
 
 contract XGTMigrator {
     using SafeMath for uint256;
@@ -25,12 +26,11 @@ contract XGTMigrator {
 
     uint256 public exchangeRate = 200;
     uint256 public lastPriceV1 = 0;
-    uint256 public startTime = 0; // TODO set time correctly after it's known
+    uint256 public startTime = 1625673600;
 
     constructor(
         address _oldToken,
         address _newToken,
-        address _rewardChest,
         address[] memory _pools,
         address[] memory _routers,
         address _newRouter,
@@ -39,7 +39,6 @@ contract XGTMigrator {
     ) {
         oldToken = ERC20Burnable(_oldToken);
         newToken = IERC20(_newToken);
-        rewardChest = IRewardChest(_rewardChest);
         require(
             _pools.length == _routers.length,
             "MIGRATOR-INVALID-ARRAY-LENGTH"
@@ -66,6 +65,11 @@ contract XGTMigrator {
         msg.sender.transfer(_amount);
     }
 
+    // if any xgt is left we can free it
+    function sweepXGT() external onlyController {
+        newToken.transfer(msg.sender, newToken.balanceOf(address(this)));
+    }
+
     fallback() external payable {}
 
     receive() external payable {}
@@ -87,7 +91,10 @@ contract XGTMigrator {
     }
 
     function _migrateWithLP() internal {
-        require(block.timestamp >= startTime, "MIGRATOR-NOT-OPENED-YET");
+        require(
+            block.timestamp >= startTime && tokenHasBeenListed(),
+            "MIGRATOR-NOT-OPENED-YET"
+        );
         uint256 finalReturnXGT = 0;
         uint256 finalReturnBase = 0;
 
@@ -197,7 +204,10 @@ contract XGTMigrator {
     }
 
     function _migrateOnlyXGT(address _from, address _to) internal {
-        require(block.timestamp >= startTime, "MIGRATOR-NOT-OPENED-YET");
+        require(
+            block.timestamp >= startTime && tokenHasBeenListed(),
+            "MIGRATOR-NOT-OPENED-YET"
+        );
         uint256 finalReturnXGT = 0;
 
         // XGT TOKEN
@@ -231,17 +241,40 @@ contract XGTMigrator {
         lastPriceV1 = _lastPriceV1;
     }
 
-    function updateExchangeRate(uint256 _currentPriceV2)
+    function updateExchangeRate(uint256 _currentPriceV2, bool _addBonus)
         external
         onlyController
     {
         // for the input
         // e.g. $0.20 per XGT would be 200000000000000000 (0.2 * 10^18)
         exchangeRate = (lastPriceV1.mul(1000)).div(_currentPriceV2);
+        if (_addBonus) {
+            exchangeRate = exchangeRate.mul(105).div(100);
+        }
     }
 
     modifier onlyController() {
         require(controllers[msg.sender], "not controller");
         _;
+    }
+
+    // function which determines whether a certain pair has been listed
+    // and funded on a uniswap-v2-based dex. This is to ensure for the
+    // public sale distribution to only happen after this is the case
+    function tokenHasBeenListed() public view returns (bool) {
+        IUniswapV2Factory exchangeFactory =
+            IUniswapV2Factory(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73);
+        address wBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+        address pair = exchangeFactory.getPair(address(newToken), wBNB);
+        // if the factory returns the 0-address, it hasn't been created
+        if (pair == address(0)) {
+            return false;
+        }
+        // if it was created, only return true if the xgt balance is
+        // greater than zero == has been funded
+        if (newToken.balanceOf(pair) > 0) {
+            return true;
+        }
+        return false;
     }
 }
