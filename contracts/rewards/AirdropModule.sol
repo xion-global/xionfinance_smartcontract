@@ -9,7 +9,6 @@ import "../interfaces/IRewardChest.sol";
 contract AirdropModule is Initializable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
 
-    IERC20 public xgt;
     IRewardChest public rewardChest;
 
     struct Airdrop {
@@ -27,8 +26,7 @@ contract AirdropModule is Initializable, OwnableUpgradeable {
     );
     event AirdropClaimed(address indexed recipient, uint256 amount);
 
-    function initialize(address _xgt, address _rewardChest) public initializer {
-        xgt = IERC20(_xgt);
+    function initialize(address _rewardChest) public initializer {
         rewardChest = IRewardChest(_rewardChest);
 
         OwnableUpgradeable.__Ownable_init();
