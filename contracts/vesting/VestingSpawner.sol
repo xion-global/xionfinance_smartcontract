@@ -100,7 +100,7 @@ contract VestingSpawner is Ownable {
         );
 
         require(
-            _startTime >= 1623974400,
+            _startTime >= 1625673600,
             "VESTING-SPAWNER-START-TIME-TOO-EARLY"
         );
 
