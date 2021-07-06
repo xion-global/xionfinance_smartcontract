@@ -57,7 +57,6 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard, Pausable {
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
         transferOwnership(_multiSig);
-        _pause();
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {

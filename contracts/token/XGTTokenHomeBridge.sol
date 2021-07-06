@@ -14,6 +14,7 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
 
     address public homeToken;
     address public outpostToken;
+    uint256 public outpostNetworkID;
     IBridgeContract public messageBridge;
     uint256 public crossChainCallGas = 300000;
 
@@ -35,11 +36,11 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
         uint256 amount,
         uint256 nonce
     );
-    event Paused(address pauser, bool state);
 
     constructor(
         address _homeToken,
         address _outpostToken,
+        uint256 _outpostNetworkID,
         address _messageBridge,
         address _multiSig
     ) {
@@ -54,10 +55,10 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
         );
         homeToken = _homeToken;
         outpostToken = _outpostToken;
+        outpostNetworkID = _outpostNetworkID;
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
         transferOwnership(_multiSig);
-        _pause();
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {
