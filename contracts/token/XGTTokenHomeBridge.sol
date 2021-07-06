@@ -42,7 +42,8 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
         address _outpostToken,
         uint256 _outpostNetworkID,
         address _messageBridge,
-        address _multiSig
+        address _multiSig,
+        bool _active
     ) {
         require(_homeToken != address(0), "XGT-INVALID-HOME-TOKEN-ADDRESS");
         require(
@@ -59,6 +60,9 @@ contract XGTTokenHomeBridge is Ownable, ReentrancyGuard, Pausable {
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
         transferOwnership(_multiSig);
+        if (!_active) {
+            _pause();
+        }
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {

@@ -14,7 +14,7 @@ contract XGTToken is ERC20 {
     uint256 private constant ISSUE_RESERVE = 450000000 * 10**18; // 450 million
     uint256 private constant XION_RESERVE = 200000000 * 10**18; // 200 million
     uint256 private constant FOUNDERS_RESERVE = 150000000 * 10**18; // 150 million
-    uint256 private constant TEAM_AND_ADVISORS = 150000000 * 10**18; // 100 million
+    uint256 private constant TEAM_AND_ADVISORS = 150000000 * 10**18; // 150 million
     uint256 private constant MARKET_MAKING = 50000000 * 10**18; // 50 million
 
     constructor() ERC20("Xion Global Token", "XGT") {}

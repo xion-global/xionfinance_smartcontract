@@ -44,7 +44,8 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard, Pausable {
         address _homeToken,
         address _homeBridge,
         address _messageBridge,
-        address _multiSig
+        address _multiSig,
+        bool _active
     ) ERC20("Xion Global Token", "XGT") {
         require(_homeToken != address(0), "XGT-INVALID-HOME-TOKEN-ADDRESS");
         require(_homeBridge != address(0), "XGT-INVALID-HOME-BRIDGE-ADDRESS");
@@ -57,6 +58,9 @@ contract XGTTokenOutpost is Ownable, ERC20Burnable, ReentrancyGuard, Pausable {
         messageBridge = IBridgeContract(_messageBridge);
         emit BridgeAddressChanged(_messageBridge, msg.sender);
         transferOwnership(_multiSig);
+        if (!_active) {
+            _pause();
+        }
     }
 
     function changeMessageBridge(address _newMessageBridge) external onlyOwner {
