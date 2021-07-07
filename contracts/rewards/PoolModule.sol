@@ -365,6 +365,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                 } else {
                     // else: if there have been new prices after the last claim of the user
                     for (uint256 j = 0; j < lenPrices; j++) {
+                        uint256 safeLastJ = j == 0 ? 0 : j - 1;
                         // if this price is the last one in the array
                         if (j == lenPrices - 1) {
                             // add the time between this last price and the last claim
@@ -375,7 +376,7 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                                 _poolTokenCalculation(
                                     _user,
                                     i,
-                                    j - 1,
+                                    safeLastJ,
                                     last,
                                     pools[i].prices[j].timestamp
                                 )
@@ -395,11 +396,12 @@ contract PoolModule is Initializable, OwnableUpgradeable {
                             // take the time between last claim and this price
                             // with the price at that time and update the last claim time
                             if (last < pools[i].prices[j].timestamp) {
+                                if (j == 0) {}
                                 thisPoolTotal = thisPoolTotal.add(
                                     _poolTokenCalculation(
                                         _user,
                                         i,
-                                        j - 1,
+                                        safeLastJ,
                                         last,
                                         pools[i].prices[j].timestamp
                                     )
