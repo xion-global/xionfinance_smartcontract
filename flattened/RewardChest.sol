@@ -59,11 +59,7 @@ library SafeMathUpgradeable {
      *
      * - Subtraction cannot overflow.
      */
-    function sub(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         require(b <= a, errorMessage);
         uint256 c = a - b;
 
@@ -122,11 +118,7 @@ library SafeMathUpgradeable {
      *
      * - The divisor cannot be zero.
      */
-    function div(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -162,11 +154,7 @@ library SafeMathUpgradeable {
      *
      * - The divisor cannot be zero.
      */
-    function mod(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         require(b != 0, errorMessage);
         return a % b;
     }
@@ -174,22 +162,26 @@ library SafeMathUpgradeable {
 
 // File: @openzeppelin/contracts-upgradeable/proxy/Initializable.sol
 
+//  MIT
+
 // solhint-disable-next-line compiler-version
 pragma solidity >=0.4.24 <0.8.0;
+
 
 /**
  * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
  * behind a proxy. Since a proxied contract can't have a constructor, it's common to move constructor logic to an
  * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
  * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
- *
+ * 
  * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
  * possible by providing the encoded function call as the `_data` argument to {UpgradeableProxy-constructor}.
- *
+ * 
  * CAUTION: When used with inheritance, manual care must be taken to not invoke a parent initializer twice, or to ensure
  * that all initializers are idempotent. This is not verified automatically as constructors are by Solidity.
  */
 abstract contract Initializable {
+
     /**
      * @dev Indicates that the contract has been initialized.
      */
@@ -204,10 +196,7 @@ abstract contract Initializable {
      * @dev Modifier to protect an initializer function from being invoked twice.
      */
     modifier initializer() {
-        require(
-            _initializing || _isConstructor() || !_initialized,
-            "Initializable: contract is already initialized"
-        );
+        require(_initializing || _isConstructor() || !_initialized, "Initializable: contract is already initialized");
 
         bool isTopLevelCall = !_initializing;
         if (isTopLevelCall) {
@@ -232,16 +221,17 @@ abstract contract Initializable {
         address self = address(this);
         uint256 cs;
         // solhint-disable-next-line no-inline-assembly
-        assembly {
-            cs := extcodesize(self)
-        }
+        assembly { cs := extcodesize(self) }
         return cs == 0;
     }
 }
 
 // File: @openzeppelin/contracts-upgradeable/GSN/ContextUpgradeable.sol
 
+//  MIT
+
 pragma solidity >=0.6.0 <0.8.0;
+
 
 /*
  * @dev Provides information about the current execution context, including the
@@ -258,8 +248,8 @@ abstract contract ContextUpgradeable is Initializable {
         __Context_init_unchained();
     }
 
-    function __Context_init_unchained() internal initializer {}
-
+    function __Context_init_unchained() internal initializer {
+    }
     function _msgSender() internal view virtual returns (address payable) {
         return msg.sender;
     }
@@ -268,13 +258,15 @@ abstract contract ContextUpgradeable is Initializable {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
-
     uint256[50] private __gap;
 }
 
 // File: @openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol
 
+//  MIT
+
 pragma solidity >=0.6.0 <0.8.0;
+
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -291,10 +283,7 @@ pragma solidity >=0.6.0 <0.8.0;
 abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
     address private _owner;
 
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
@@ -342,20 +331,19 @@ abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
      * Can only be called by the current owner.
      */
     function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
     }
-
     uint256[49] private __gap;
 }
 
 // File: @openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 
+//  MIT
+
 pragma solidity >=0.6.0 <0.8.0;
+
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
@@ -422,6 +410,8 @@ abstract contract ReentrancyGuardUpgradeable is Initializable {
 }
 
 // File: contracts/metatx/EIP712Base.sol
+
+//  AGPL-3.0
 pragma solidity 0.7.6;
 
 contract EIP712Base {
@@ -487,7 +477,10 @@ contract EIP712Base {
 
 // File: contracts/metatx/EIP712MetaTransaction.sol
 
+//  AGPL-3.0
 pragma solidity 0.7.6;
+
+
 
 contract EIP712MetaTransaction is EIP712Base {
     using SafeMathUpgradeable for uint256;
@@ -635,6 +628,8 @@ contract EIP712MetaTransaction is EIP712Base {
 
 // File: @openzeppelin/contracts/token/ERC20/IERC20.sol
 
+//  MIT
+
 pragma solidity ^0.7.0;
 
 /**
@@ -658,9 +653,7 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address recipient, uint256 amount)
-        external
-        returns (bool);
+    function transfer(address recipient, uint256 amount) external returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be
@@ -669,10 +662,7 @@ interface IERC20 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
@@ -699,11 +689,7 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -717,15 +703,12 @@ interface IERC20 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 // File: contracts/interfaces/IRewardModule.sol
 
+//  AGPL-3.0
 pragma solidity 0.7.6;
 
 interface IRewardModule {
@@ -736,6 +719,7 @@ interface IRewardModule {
 
 // File: contracts/interfaces/IXGTTokenHomeBridge.sol
 
+//  AGPL-3.0
 pragma solidity 0.7.6;
 
 interface IXGTTokenHomeBridge {
@@ -746,7 +730,15 @@ interface IXGTTokenHomeBridge {
 
 // File: contracts/rewards/RewardChest.sol
 
+//  AGPL-3.0
 pragma solidity 0.7.6;
+
+
+
+
+
+
+
 
 contract RewardChest is
     OwnableUpgradeable,
@@ -814,7 +806,6 @@ contract RewardChest is
 
     function addToBalance(address _user, uint256 _amount)
         external
-        nonReentrant
         onlyModule
         returns (bool)
     {
@@ -899,9 +890,7 @@ contract RewardChest is
         uint256 total = userBalance[_user];
 
         for (uint256 i = 0; i < modules.length; i++) {
-            total = total.add(
-                IRewardModule(modules[i]).getClaimable(msgSender())
-            );
+            total = total.add(IRewardModule(modules[i]).getClaimable(_user));
         }
 
         return total;

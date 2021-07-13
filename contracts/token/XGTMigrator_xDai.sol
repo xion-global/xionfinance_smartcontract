@@ -20,8 +20,6 @@ contract XGTMigratorXDai {
     uint256 public lastPriceV1 = 130000000000000000;
     uint256 public startTime = 1625673600;
 
-    bool public bscWithdrawOnce = false;
-
     constructor(
         address _oldToken,
         address _newToken,
@@ -71,7 +69,7 @@ contract XGTMigratorXDai {
 
         // XGT TOKEN
         // Check whether user has XGT v1
-        uint256 migrationAmountXGT = oldToken.balanceOf(msg.sender);
+        uint256 migrationAmountXGT = oldToken.balanceOf(_from);
 
         // If user has v1, transfer them here
         if (migrationAmountXGT > 0) {
@@ -93,12 +91,6 @@ contract XGTMigratorXDai {
         // for the input
         // e.g. $0.13 per XGT would be 130000000000000000 (0.13 * 10^18)
         lastPriceV1 = _lastPriceV1;
-    }
-
-    function withdrawBSCAmount(uint256 _amount) external onlyController {
-        require(!bscWithdrawOnce, "MIGRATOR-ALREADY-WITHDREW-BSC-AMOUNT");
-        bscWithdrawOnce = true;
-        rewardChest.sendInstantClaim(msg.sender, _amount);
     }
 
     function updateExchangeRate(uint256 _currentPriceV2, bool _addBonus)

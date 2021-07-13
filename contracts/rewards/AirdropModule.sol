@@ -26,11 +26,13 @@ contract AirdropModule is Initializable, OwnableUpgradeable {
     );
     event AirdropClaimed(address indexed recipient, uint256 amount);
 
-    function initialize(address _rewardChest) public initializer {
+    function initialize(address _rewardChest, address _multiSig)
+        public
+        initializer
+    {
         rewardChest = IRewardChest(_rewardChest);
-
         OwnableUpgradeable.__Ownable_init();
-        transferOwnership(rewardChest.owner());
+        transferOwnership(_multiSig);
     }
 
     function addVestedAirdrops(

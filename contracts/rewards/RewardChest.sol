@@ -76,7 +76,6 @@ contract RewardChest is
 
     function addToBalance(address _user, uint256 _amount)
         external
-        nonReentrant
         onlyModule
         returns (bool)
     {
@@ -161,9 +160,7 @@ contract RewardChest is
         uint256 total = userBalance[_user];
 
         for (uint256 i = 0; i < modules.length; i++) {
-            total = total.add(
-                IRewardModule(modules[i]).getClaimable(msgSender())
-            );
+            total = total.add(IRewardModule(modules[i]).getClaimable(_user));
         }
 
         return total;
