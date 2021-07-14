@@ -35,7 +35,7 @@ _Comming soon!_
 
 #### Farming (PoolModule)
 
-As soon as a user is involved in a transfer of Pool tokens (either through minting, burning, or trading them), our backend node picks this up and calls the XGT Reward Chest contract to indicate that a certain user needs to be updated. The corresponding function works in a trustless manner, such that the contract itself verifies how many XGT LP tokens the user has. Based on this, the Reward Chest of XGT starts (or ends).
+As soon as a user is involved in a transfer of Pool tokens (either through minting, burning, or trading them), our backend node picks this up and calls the XGT Reward Chest contract to indicate that a certain user needs to be updated. The corresponding function works in a trustless manner, such that the contract itself verifies how many XGT LP tokens the user has. Based on this, the reward distribution of XGT starts (or ends).
 
 #### Cashbacks (Cashback Module)
 
