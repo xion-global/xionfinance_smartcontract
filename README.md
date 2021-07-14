@@ -13,8 +13,8 @@ The Xion Global Token (XGT) is a standard ERC20 token based on the OpenZeppelin 
 
 There is also a mainnet and a Binance Smart Chain version of this contract, which follows the same logic.
 
-Deployed at [0xC25AF3123d2420054c8fcd144c21113aa2853F39](https://blockscout.com/xdai/mainnet/tokens/0xC25AF3123d2420054c8fcd144c21113aa2853F39) on the xDai chain.
-Deployed at [0xC25AF3123d2420054c8fcd144c21113aa2853F39](https://bscscan.com/token/0xc25af3123d2420054c8fcd144c21113aa2853f39) on the Binance Smart Chain.
+Deployed at [0xC25AF3123d2420054c8fcd144c21113aa2853F39](https://blockscout.com/xdai/mainnet/tokens/0xC25AF3123d2420054c8fcd144c21113aa2853F39) on the xDai chain.  
+Deployed at [0xC25AF3123d2420054c8fcd144c21113aa2853F39](https://bscscan.com/token/0xc25af3123d2420054c8fcd144c21113aa2853f39) on the Binance Smart Chain.  
 Deployed at [0xC25AF3123d2420054c8fcd144c21113aa2853F39](https://etherscan.io/token/0xc25af3123d2420054c8fcd144c21113aa2853f39) on the Ethereum Mainnet.
 
 ### XGT Bridge
