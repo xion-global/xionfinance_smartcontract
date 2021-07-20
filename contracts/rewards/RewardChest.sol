@@ -30,6 +30,8 @@ contract RewardChest is
 
     bool public paused;
 
+    mapping(address => bool) public authorizedAddress;
+
     event PauseStateChanged(address performer, bool paused);
 
     function initialize(address _multiSig, address _xgt) public initializer {
@@ -74,6 +76,13 @@ contract RewardChest is
         migrationContract = _migrationContract;
     }
 
+    function toggleAuthorizedAddress(address _address, bool _authorized)
+        external
+        onlyOwner
+    {
+        authorizedAddress[_address] = _authorized;
+    }
+
     function addToBalance(address _user, uint256 _amount)
         external
         onlyModule
@@ -108,6 +117,25 @@ contract RewardChest is
         nonReentrant
         returns (uint256 withdrawAmount)
     {
+        return _claimToNetwork(_chainId, msgSender());
+    }
+
+    function claimToNetworkFor(uint256 _chainId, address _user)
+        external
+        nonReentrant
+        returns (uint256 withdrawAmount)
+    {
+        require(
+            authorizedAddress[msgSender()],
+            "XGT-REWARD-CHEST-NOT-AUTHORIZED"
+        );
+        return _claimToNetwork(_chainId, _user);
+    }
+
+    function _claimToNetwork(uint256 _chainId, address _user)
+        internal
+        returns (uint256 withdrawAmount)
+    {
         if (paused) {
             return 0;
         }
@@ -118,11 +146,11 @@ contract RewardChest is
         );
 
         for (uint256 i = 0; i < modules.length; i++) {
-            IRewardModule(modules[i]).claimModule(msgSender());
+            IRewardModule(modules[i]).claimModule(_user);
         }
 
-        withdrawAmount = userBalance[msgSender()];
-        userBalance[msgSender()] = 0;
+        withdrawAmount = userBalance[_user];
+        userBalance[_user] = 0;
 
         if (withdrawAmount > 0) {
             require(
@@ -131,7 +159,7 @@ contract RewardChest is
             );
             IXGTTokenHomeBridge(xgtBridge[_chainId]).outgoingTransfer(
                 withdrawAmount,
-                msgSender()
+                _user
             );
         }
 

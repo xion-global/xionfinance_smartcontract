@@ -59,7 +59,11 @@ library SafeMathUpgradeable {
      *
      * - Subtraction cannot overflow.
      */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
         require(b <= a, errorMessage);
         uint256 c = a - b;
 
@@ -118,7 +122,11 @@ library SafeMathUpgradeable {
      *
      * - The divisor cannot be zero.
      */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -154,7 +162,11 @@ library SafeMathUpgradeable {
      *
      * - The divisor cannot be zero.
      */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
         require(b != 0, errorMessage);
         return a % b;
     }
@@ -167,21 +179,19 @@ library SafeMathUpgradeable {
 // solhint-disable-next-line compiler-version
 pragma solidity >=0.4.24 <0.8.0;
 
-
 /**
  * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
  * behind a proxy. Since a proxied contract can't have a constructor, it's common to move constructor logic to an
  * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
  * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
- * 
+ *
  * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
  * possible by providing the encoded function call as the `_data` argument to {UpgradeableProxy-constructor}.
- * 
+ *
  * CAUTION: When used with inheritance, manual care must be taken to not invoke a parent initializer twice, or to ensure
  * that all initializers are idempotent. This is not verified automatically as constructors are by Solidity.
  */
 abstract contract Initializable {
-
     /**
      * @dev Indicates that the contract has been initialized.
      */
@@ -196,7 +206,10 @@ abstract contract Initializable {
      * @dev Modifier to protect an initializer function from being invoked twice.
      */
     modifier initializer() {
-        require(_initializing || _isConstructor() || !_initialized, "Initializable: contract is already initialized");
+        require(
+            _initializing || _isConstructor() || !_initialized,
+            "Initializable: contract is already initialized"
+        );
 
         bool isTopLevelCall = !_initializing;
         if (isTopLevelCall) {
@@ -221,7 +234,9 @@ abstract contract Initializable {
         address self = address(this);
         uint256 cs;
         // solhint-disable-next-line no-inline-assembly
-        assembly { cs := extcodesize(self) }
+        assembly {
+            cs := extcodesize(self)
+        }
         return cs == 0;
     }
 }
@@ -231,7 +246,6 @@ abstract contract Initializable {
 //  MIT
 
 pragma solidity >=0.6.0 <0.8.0;
-
 
 /*
  * @dev Provides information about the current execution context, including the
@@ -248,8 +262,8 @@ abstract contract ContextUpgradeable is Initializable {
         __Context_init_unchained();
     }
 
-    function __Context_init_unchained() internal initializer {
-    }
+    function __Context_init_unchained() internal initializer {}
+
     function _msgSender() internal view virtual returns (address payable) {
         return msg.sender;
     }
@@ -258,6 +272,7 @@ abstract contract ContextUpgradeable is Initializable {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
+
     uint256[50] private __gap;
 }
 
@@ -266,7 +281,6 @@ abstract contract ContextUpgradeable is Initializable {
 //  MIT
 
 pragma solidity >=0.6.0 <0.8.0;
-
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -283,7 +297,10 @@ pragma solidity >=0.6.0 <0.8.0;
 abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
     address private _owner;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
@@ -331,10 +348,14 @@ abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
      * Can only be called by the current owner.
      */
     function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        require(
+            newOwner != address(0),
+            "Ownable: new owner is the zero address"
+        );
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
     }
+
     uint256[49] private __gap;
 }
 
@@ -343,7 +364,6 @@ abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
 //  MIT
 
 pragma solidity >=0.6.0 <0.8.0;
-
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
@@ -479,8 +499,6 @@ contract EIP712Base {
 
 //  AGPL-3.0
 pragma solidity 0.7.6;
-
-
 
 contract EIP712MetaTransaction is EIP712Base {
     using SafeMathUpgradeable for uint256;
@@ -653,7 +671,9 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be
@@ -662,7 +682,10 @@ interface IERC20 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
@@ -689,7 +712,11 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -703,7 +730,11 @@ interface IERC20 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 // File: contracts/interfaces/IRewardModule.sol
@@ -733,13 +764,6 @@ interface IXGTTokenHomeBridge {
 //  AGPL-3.0
 pragma solidity 0.7.6;
 
-
-
-
-
-
-
-
 contract RewardChest is
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -759,6 +783,8 @@ contract RewardChest is
     mapping(address => uint256) public userBalance;
 
     bool public paused;
+
+    mapping(address => bool) public authorizedAddress;
 
     event PauseStateChanged(address performer, bool paused);
 
@@ -804,6 +830,13 @@ contract RewardChest is
         migrationContract = _migrationContract;
     }
 
+    function toggleAuthorizedAddress(address _address, bool _authorized)
+        external
+        onlyOwner
+    {
+        authorizedAddress[_address] = _authorized;
+    }
+
     function addToBalance(address _user, uint256 _amount)
         external
         onlyModule
@@ -838,6 +871,25 @@ contract RewardChest is
         nonReentrant
         returns (uint256 withdrawAmount)
     {
+        return _claimToNetwork(_chainId, msgSender());
+    }
+
+    function claimToNetworkFor(uint256 _chainId, address _user)
+        external
+        nonReentrant
+        returns (uint256 withdrawAmount)
+    {
+        require(
+            authorizedAddress[msgSender()],
+            "XGT-REWARD-CHEST-NOT-AUTHORIZED"
+        );
+        return _claimToNetwork(_chainId, _user);
+    }
+
+    function _claimToNetwork(uint256 _chainId, address _user)
+        internal
+        returns (uint256 withdrawAmount)
+    {
         if (paused) {
             return 0;
         }
@@ -848,11 +900,11 @@ contract RewardChest is
         );
 
         for (uint256 i = 0; i < modules.length; i++) {
-            IRewardModule(modules[i]).claimModule(msgSender());
+            IRewardModule(modules[i]).claimModule(_user);
         }
 
-        withdrawAmount = userBalance[msgSender()];
-        userBalance[msgSender()] = 0;
+        withdrawAmount = userBalance[_user];
+        userBalance[_user] = 0;
 
         if (withdrawAmount > 0) {
             require(
@@ -861,7 +913,7 @@ contract RewardChest is
             );
             IXGTTokenHomeBridge(xgtBridge[_chainId]).outgoingTransfer(
                 withdrawAmount,
-                msgSender()
+                _user
             );
         }
 
